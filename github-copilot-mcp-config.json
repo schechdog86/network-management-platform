@@ -1,0 +1,134 @@
+{
+  "github.copilot.chat.agent.tools": [
+    "Context7",
+    "sequential-thinking-tool",
+    "code-interpreter",
+    "memory-tool",
+    "toolbox",
+    "desktop-commander",
+    "think-tool-server",
+    "memory-bank-helper",
+    "code-mcp",
+    "perplexity-chat"
+  ],
+  "mcp": {
+    "servers": {
+      "Context7": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@upstash/context7-mcp",
+          "--key",
+          "f14cef5c-b856-454f-bf01-7cf75df918c5"
+        ]
+      },
+      "sequential-thinking-tool": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@smithery-ai/server-sequential-thinking",
+          "--key",
+          "f14cef5c-b856-454f-bf01-7cf75df918c5"
+        ]
+      },
+      "code-interpreter": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@waldzellai/clear-thought",
+          "--key",
+          "f14cef5c-b856-454f-bf01-7cf75df918c5"
+        ]
+      },
+      "memory-tool": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@mem0ai/mem0-memory-mcp",
+          "--key",
+          "f14cef5c-b856-454f-bf01-7cf75df918c5",
+          "--profile",
+          "geographical-eagle-karTUD"
+        ]
+      },
+      "toolbox": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@smithery/toolbox",
+          "--key",
+          "f14cef5c-b856-454f-bf01-7cf75df918c5",
+          "--profile",
+          "geographical-eagle-karTUD"
+        ]
+      },
+      "desktop-commander": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@wonderwhy-er/desktop-commander",
+          "--key",
+          "f14cef5c-b856-454f-bf01-7cf75df918c5"
+        ]
+      },
+      "think-tool-server": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@PhillipRt/think-mcp-server",
+          "--key",
+          "f14cef5c-b856-454f-bf01-7cf75df918c5"
+        ]
+      },
+      "memory-bank-helper": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@ipospelov/mcp-memory-bank",
+          "--key",
+          "f14cef5c-b856-454f-bf01-7cf75df918c5"
+        ]
+      },
+      "code-mcp": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@block/code-mcp",
+          "--key",
+          "f14cef5c-b856-454f-bf01-7cf75df918c5"
+        ]
+      },
+      "perplexity-chat": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@daniel-lxs/mcp-perplexity",
+          "--key",
+          "f14cef5c-b856-454f-bf01-7cf75df918c5",
+          "--profile",
+          "geographical-eagle-karTUD"
+        ]
+      }
+    }
+  }
+}

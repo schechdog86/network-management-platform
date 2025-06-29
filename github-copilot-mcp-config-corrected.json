@@ -1,0 +1,144 @@
+{
+  "github.copilot.chat.agent.tools": {
+    "Context7": {
+      "description": "Advanced contextual analysis tool that helps understand complex information and relationships within data. Use for deep context analysis and reasoning tasks.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@upstash/context7-mcp",
+        "--key",
+        "f14cef5c-b856-454f-bf01-7cf75df918c5"
+      ]
+    },
+    "sequential thinkingTool": {
+      "description": "Step-by-step reasoning tool that helps break down complex problems into sequential steps. Ideal for methodical problem-solving and planning.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@smithery-ai/server-sequential-thinking",
+        "--key",
+        "f14cef5c-b856-454f-bf01-7cf75df918c5"
+      ]
+    },
+    "Code Interpreter": {
+      "description": "Structured thinking tool that helps break down complex problems into manageable steps. Ideal for planning, decision-making, and logical reasoning tasks.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@waldzellai/clear-thought",
+        "--key",
+        "f14cef5c-b856-454f-bf01-7cf75df918c5"
+      ]
+    },
+    "Memory Tool": {
+      "description": "Long-term memory storage and retrieval system. Use for storing important information across sessions and recalling previous interactions or knowledge.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@mem0ai/mem0-memory-mcp",
+        "--key",
+        "f14cef5c-b856-454f-bf01-7cf75df918c5",
+        "--profile",
+        "geographical-eagle-karTUD"
+      ]
+    },
+    "Toolbox": {
+      "description": "Multi-purpose utility collection with various helper functions. Use when you need a general-purpose tool for diverse tasks.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@smithery/toolbox",
+        "--key",
+        "f14cef5c-b856-454f-bf01-7cf75df918c5",
+        "--profile",
+        "geographical-eagle-karTUD"
+      ]
+    },
+    "Desktop Commander": {
+      "description": "Interface for controlling desktop applications and system functions. Use for file operations, application control, and system management tasks.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@wonderwhy-er/desktop-commander",
+        "--key",
+        "f14cef5c-b856-454f-bf01-7cf75df918c5"
+      ]
+    },
+    "Sequential Thinking": {
+      "description": "Step-by-step reasoning tool that helps break down complex problems into sequential steps. Ideal for methodical problem-solving and planning.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@smithery-ai/server-sequential-thinking",
+        "--key",
+        "f14cef5c-b856-454f-bf01-7cf75df918c5"
+      ]
+    },
+    "Think Tool Server": {
+      "description": "Advanced reasoning and brainstorming tool that helps generate ideas and think through complex concepts. Use for creative problem-solving and innovation.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@PhillipRt/think-mcp-server",
+        "--key",
+        "f14cef5c-b856-454f-bf01-7cf75df918c5"
+      ]
+    },
+    "Memory Bank Setup Helper": {
+      "description": "Tool for organizing and structuring memory storage. Use for setting up categorized information repositories and knowledge management systems.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@ipospelov/mcp-memory-bank",
+        "--key",
+        "f14cef5c-b856-454f-bf01-7cf75df918c5"
+      ]
+    },
+    "Code MCP": {
+      "description": "Specialized tool for code analysis, generation, and refactoring. Use for programming tasks, code reviews, and software development assistance.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@block/code-mcp",
+        "--key",
+        "f14cef5c-b856-454f-bf01-7cf75df918c5"
+      ]
+    },
+    "Perplexity Chat MCP Server": {
+      "description": "Perplexity AI integration for advanced search and information retrieval.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@daniel-lxs/mcp-perplexity",
+        "--key",
+        "f14cef5c-b856-454f-bf01-7cf75df918c5",
+        "--profile",
+        "geographical-eagle-karTUD"
+      ]
+    }
+  },
+  "github.copilot.chat.agent.thinkingTool": true,
+  "chat.mcp.discovery.enabled": true
+}

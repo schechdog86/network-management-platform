@@ -18,6 +18,9 @@ from .pxe import router as pxe_router
 from .predictive_maintenance import router as predictive_router
 from .github import router as github_router
 from .cicd import router as cicd_router
+from .webhooks import router as webhooks_router
+from .notifications import router as notifications_router
+from .alerts import router as alerts_router
 
 # Create main API router
 api_router = APIRouter()
@@ -38,5 +41,8 @@ api_router.include_router(pxe_router, prefix="/pxe", tags=["pxe-boot"])
 api_router.include_router(predictive_router, prefix="/predictive-maintenance", tags=["predictive-maintenance"])
 api_router.include_router(github_router, prefix="/github", tags=["github-integration"])
 api_router.include_router(cicd_router, prefix="/cicd", tags=["cicd-tracking"])
+api_router.include_router(webhooks_router, prefix="/webhooks", tags=["webhooks"])
+api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
+api_router.include_router(alerts_router, prefix="/alerts", tags=["alerts"])
 
 __all__ = ["api_router"]

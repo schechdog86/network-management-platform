@@ -21,6 +21,7 @@ import {
 
 import { useAuthStore } from '@/stores/authStore';
 import { useWebSocketStatus } from '@/hooks/useWebSocket';
+import NotificationCenter from '@/components/Notifications/NotificationCenter';
 
 interface TopBarProps {
   onMenuClick: () => void;
@@ -101,11 +102,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
       </Tooltip>
 
       {/* Notifications */}
-      <IconButton color="inherit" sx={{ mr: 1 }}>
-        <Badge badgeContent={0} color="error">
-          <NotificationsIcon />
-        </Badge>
-      </IconButton>
+      <NotificationCenter />
 
       {/* User Menu */}
       <Box sx={{ display: 'flex', alignItems: 'center' }}>

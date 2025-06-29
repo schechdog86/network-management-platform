@@ -67,6 +67,11 @@ backups/
 Thumbs.db
 .DS_Store
 
+# Large files
+*.squashfs
+*.iso
+SHECHZILLA/
+
 # Credentials and secrets
 *.pem
 *.key

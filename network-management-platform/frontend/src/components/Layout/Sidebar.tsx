@@ -21,6 +21,7 @@ import {
   DeviceHub as PXEIcon,
   SmartToy as ChatIcon,
   TrendingUp as PredictiveIcon,
+  GitHub as GitHubIcon,
 } from '@mui/icons-material';
 
 interface SidebarProps {
@@ -62,6 +63,11 @@ const menuItems = [
     text: 'Predictive Maintenance',
     path: '/predictive-maintenance',
     icon: PredictiveIcon,
+  },
+  {
+    text: 'GitHub',
+    path: '/github',
+    icon: GitHubIcon,
   },
   {
     text: 'Settings',

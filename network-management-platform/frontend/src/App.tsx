@@ -17,6 +17,7 @@ import SettingsPage from '@/pages/SettingsPage';
 import PXEBootPage from '@/pages/PXEBootPage';
 import ChatPage from '@/pages/ChatPage';
 import PredictiveMaintenancePage from '@/pages/PredictiveMaintenancePage';
+import GitHubPage from '@/pages/GitHubPage';
 import LoadingSpinner from '@/components/Common/LoadingSpinner';
 import ErrorBoundary from '@/components/Common/ErrorBoundary';
 import AsyncErrorBoundary from '@/components/Common/AsyncErrorBoundary';
@@ -170,6 +171,7 @@ const AppContent: React.FC = () => {
         <Route path="pxe-boot" element={<ErrorBoundary><PXEBootPage /></ErrorBoundary>} />
         <Route path="chat" element={<ErrorBoundary><ChatPage /></ErrorBoundary>} />
         <Route path="predictive-maintenance" element={<ErrorBoundary><PredictiveMaintenancePage /></ErrorBoundary>} />
+        <Route path="github" element={<ErrorBoundary><GitHubPage /></ErrorBoundary>} />
         <Route path="settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
       </Route>
       

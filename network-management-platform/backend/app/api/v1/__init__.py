@@ -16,6 +16,8 @@ from .wake_on_lan import router as wol_router
 from .metrics import router as metrics_router
 from .pxe import router as pxe_router
 from .predictive_maintenance import router as predictive_router
+from .github import router as github_router
+from .cicd import router as cicd_router
 
 # Create main API router
 api_router = APIRouter()
@@ -34,5 +36,7 @@ api_router.include_router(wol_router, prefix="/wake-on-lan", tags=["wake-on-lan"
 api_router.include_router(metrics_router, prefix="/metrics", tags=["system-metrics"])
 api_router.include_router(pxe_router, prefix="/pxe", tags=["pxe-boot"])
 api_router.include_router(predictive_router, prefix="/predictive-maintenance", tags=["predictive-maintenance"])
+api_router.include_router(github_router, prefix="/github", tags=["github-integration"])
+api_router.include_router(cicd_router, prefix="/cicd", tags=["cicd-tracking"])
 
 __all__ = ["api_router"]

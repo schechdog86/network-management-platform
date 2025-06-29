@@ -1,0 +1,208 @@
+name: network-mgmt-client
+version: '1.0.0'
+summary: Network Management Client for Ubuntu Core
+description: |
+  Autonomous network management client for Ubuntu Core devices.
+  Provides hardware monitoring, backup capabilities, SSH management,
+  SNMP monitoring, and Ray cluster integration.
+
+base: core24
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on: amd64
+    run-on: [amd64]
+  - build-on: arm64
+    run-on: [arm64]
+
+apps:
+  network-agent:
+    command: bin/network-agent
+    daemon: simple
+    restart-condition: always
+    restart-delay: 10s
+    watchdog-timeout: 30s
+    plugs:
+      - network
+      - network-bind
+      - network-control
+      - network-observe
+      - hardware-observe
+      - system-observe
+      - mount-observe
+      - log-observe
+      - shutdown
+    environment:
+      PYTHONPATH: $SNAP/lib/python3.11/site-packages:$SNAP/usr/lib/python3/dist-packages
+      LD_LIBRARY_PATH: $SNAP/lib:$SNAP/usr/lib:$SNAP/lib/x86_64-linux-gnu:$SNAP/usr/lib/x86_64-linux-gnu
+
+  hardware-monitor:
+    command: bin/hardware-monitor
+    daemon: simple
+    restart-condition: always
+    timer: 00:00-24:00/5  # Run every 5 minutes
+    plugs:
+      - hardware-observe
+      - system-observe
+      - mount-observe
+
+  backup-service:
+    command: bin/backup-service
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - removable-media
+      - home
+      - system-backup
+
+  ssh-manager:
+    command: bin/ssh-manager
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-bind
+      - ssh-keys
+      - ssh-public-keys
+
+  snmp-monitor:
+    command: bin/snmp-monitor
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-observe
+
+  ray-worker:
+    command: bin/ray-worker
+    daemon: simple
+    restart-condition: on-failure
+    plugs:
+      - network
+      - network-bind
+      - hardware-observe
+      - process-control
+
+layout:
+  /etc/ssh:
+    bind: $SNAP_DATA/ssh
+  /var/log/network-mgmt:
+    bind: $SNAP_DATA/logs
+
+parts:
+  python-runtime:
+    plugin: nil
+    stage-packages:
+      - python3.11
+      - python3.11-venv
+      - python3-pip
+      - python3-setuptools
+      - python3-wheel
+      - libpython3.11-stdlib
+      - libpython3.11-minimal
+
+  network-dependencies:
+    plugin: nil
+    stage-packages:
+      - openssh-client
+      - iputils-ping
+      - net-tools
+      - iproute2
+      - tcpdump
+      - nmap
+      - snmp
+      - snmp-mibs-downloader
+      - wakeonlan
+      - ethtool
+      - iperf3
+
+  system-dependencies:
+    plugin: nil
+    stage-packages:
+      - dmidecode
+      - smartmontools
+      - lshw
+      - hdparm
+      - nvme-cli
+      - pciutils
+      - usbutils
+      - lm-sensors
+
+  python-packages:
+    plugin: python
+    source: .
+    python-packages:
+      - fastapi==0.104.1
+      - uvicorn==0.24.0
+      - paramiko==3.3.1
+      - psutil==5.9.6
+      - pysnmp==6.0.0
+      - aiohttp==3.9.1
+      - aiofiles==23.2.0
+      - pydantic==2.5.2
+      - pydantic-settings==2.1.0
+      - redis==5.0.1
+      - ray==2.8.0
+      - structlog==23.2.0
+      - prometheus-client==0.19.0
+    build-packages:
+      - build-essential
+      - python3.11-dev
+      - libssl-dev
+      - libffi-dev
+
+  network-client:
+    plugin: dump
+    source: src/
+    organize:
+      '*.py': bin/
+      'services/*.py': bin/services/
+      'models/*.py': bin/models/
+      'utils/*.py': bin/utils/
+    stage:
+      - bin/*
+    prime:
+      - bin/*
+
+  scripts:
+    plugin: dump
+    source: scripts/
+    organize:
+      '*': bin/
+    stage:
+      - bin/*
+    prime:
+      - bin/*
+
+  config:
+    plugin: dump
+    source: config/
+    organize:
+      '*': etc/network-mgmt/
+
+hooks:
+  install:
+    plugs:
+      - network
+  configure:
+    plugs:
+      - network
+      - network-control
+  connect-plug-network-control:
+    plugs:
+      - network-control
+
+slots:
+  network-mgmt-api:
+    interface: content
+    content: network-mgmt-api
+    write:
+      - $SNAP_DATA/api
+
+plugs:
+  network-mgmt-server:
+    interface: content
+    content: network-mgmt-api
+    target: $SNAP_DATA/server-api

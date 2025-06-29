@@ -1,0 +1,157 @@
+name: network-mgmt-core
+version: '1.0.0'
+summary: Enterprise Network Management Platform
+description: |
+  Complete network management solution with AI assistance, distributed 
+  computing via Ray cluster, and enterprise security features. Designed 
+  for Ubuntu Core deployment with immutable OS security and over-the-air updates.
+
+base: core24
+grade: stable
+confinement: strict
+
+# Application definitions
+apps:
+  server:
+    command: bin/network-mgmt-server
+    daemon: simple
+    restart-condition: always
+    environment:
+      PYTHONPATH: $SNAP/lib/python3.11/site-packages:$SNAP/usr/lib/python3/dist-packages
+      CUDA_HOME: $SNAP/cuda
+      PATH: $SNAP/bin:$SNAP/usr/bin:$PATH
+      LD_LIBRARY_PATH: $SNAP/cuda/lib64:$SNAP/lib:$SNAP/usr/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network
+      - network-bind
+      - hardware-observe
+      - system-observe
+      - mount-observe
+      - removable-media
+      - gpu-control
+      - process-control
+      - kernel-module-observe
+  
+  cli:
+    command: bin/network-mgmt-cli
+    environment:
+      PYTHONPATH: $SNAP/lib/python3.11/site-packages:$SNAP/usr/lib/python3/dist-packages
+    plugs:
+      - network
+      - home
+      - removable-media
+  
+  ray-worker:
+    command: bin/ray-worker
+    daemon: simple
+    restart-condition: always
+    environment:
+      PYTHONPATH: $SNAP/lib/python3.11/site-packages:$SNAP/usr/lib/python3/dist-packages
+      CUDA_HOME: $SNAP/cuda
+    plugs:
+      - network
+      - gpu-control
+      - hardware-observe
+      - system-observe
+
+# Snap interfaces
+plugs:
+  gpu-control:
+    interface: content
+    content: cuda-runtime
+    target: $SNAP/cuda
+    default-provider: cuda-runtime
+  
+  network-config:
+    interface: content
+    content: network-management
+    target: $SNAP_DATA/network
+
+slots:
+  management-api:
+    interface: content
+    content: mgmt-api
+    write: [$SNAP_DATA/api]
+
+# Build configuration
+parts:
+  # Python runtime and dependencies
+  python-deps:
+    plugin: python
+    source: ../../backend
+    requirements:
+      - requirements.txt
+    python-packages:
+      - fastapi==0.104.1
+      - uvicorn[standard]==0.24.0
+      - sqlalchemy==2.0.23
+      - psycopg2-binary==2.9.9
+      - redis==5.0.1
+      - ray[default]==2.8.0
+      - paramiko==3.3.1
+      - pysnmp==6.0.0
+      - python-nmap==0.7.1
+      - psutil==5.9.6
+      - langchain==0.0.350
+      - openai==1.3.8
+      - transformers==4.36.2
+      - torch>=2.1.0
+      - accelerate==0.25.0
+      - numpy==1.24.4
+      - pandas==2.1.4
+      - pydantic==2.5.2
+    stage-packages:
+      - python3.11
+      - python3.11-dev
+      - python3-pip
+      - build-essential
+      - cmake
+    
+  # System utilities for network management
+  network-tools:
+    plugin: nil
+    stage-packages:
+      - nmap
+      - snmp
+      - snmp-mibs-downloader
+      - iproute2
+      - iputils-ping
+      - tcpdump
+      - net-tools
+      - openssh-client
+      - curl
+      - wget
+    
+  # Application binaries
+  app-binaries:
+    plugin: dump
+    source: scripts/
+    organize:
+      network-mgmt-server: bin/network-mgmt-server
+      network-mgmt-cli: bin/network-mgmt-cli
+      ray-worker: bin/ray-worker
+    stage:
+      - bin/*
+    
+  # Configuration files
+  config:
+    plugin: dump
+    source: config/
+    organize:
+      '*': etc/network-mgmt/
+    stage:
+      - etc/network-mgmt/*
+
+# Layout configuration
+layout:
+  /usr/lib/python3.11:
+    bind: $SNAP/usr/lib/python3.11
+  /usr/include/python3.11:
+    bind: $SNAP/usr/include/python3.11
+
+# Architecture support
+architectures:
+  - build-on: amd64
+    build-for: amd64
+  - build-on: arm64
+    build-for: arm64

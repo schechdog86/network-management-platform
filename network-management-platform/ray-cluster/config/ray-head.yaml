@@ -1,0 +1,56 @@
+# Ray Cluster Configuration for Network Management Platform
+cluster_name: network-management-cluster
+
+# Ray Head Node Configuration
+head_node_type:
+  name: head_node
+  node_config:
+    resources:
+      CPU: 16
+      GPU: 4
+      memory: 64000000000  # 64GB
+      object_store_memory: 16000000000  # 16GB
+
+# Worker Node Types
+available_node_types:
+  gpu_worker:
+    min_workers: 0
+    max_workers: 8
+    node_config:
+      resources:
+        CPU: 8
+        GPU: 4
+        memory: 32000000000  # 32GB
+        object_store_memory: 8000000000  # 8GB
+
+# Autoscaling Configuration
+autoscaling_mode: default
+target_utilization_fraction: 0.8
+idle_timeout_minutes: 5
+upscaling_speed: 1.0
+downscaling_speed: 1.0
+
+# Cluster management
+max_workers: 8
+min_workers: 0
+
+# Ray runtime configuration
+ray_start_config:
+  dashboard-host: 0.0.0.0
+  dashboard-port: 8265
+  metrics-export-port: 8080
+  node-manager-port: 8076
+  object-manager-port: 8077
+  redis-password: null
+  temp-dir: /tmp/ray
+
+# GPU configuration
+initialization_commands:
+  - pip install cupy-cuda12x torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+  - pip install accelerate transformers datasets
+
+# Network management specific configuration
+custom_resources:
+  NetworkScanner: 4
+  BackupProcessor: 4
+  AIInference: 4

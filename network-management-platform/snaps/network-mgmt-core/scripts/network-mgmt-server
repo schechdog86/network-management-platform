@@ -1,0 +1,175 @@
+#!/bin/bash
+
+# Network Management Platform Server Startup Script
+# Enterprise-grade initialization with GPU support
+
+set -e
+
+# Environment setup
+export SNAP_NAME="network-mgmt-core"
+export SNAP_VERSION="1.0.0"
+export PYTHONPATH="$SNAP/lib/python3.11/site-packages:$SNAP/usr/lib/python3/dist-packages"
+export CUDA_HOME="$SNAP/cuda"
+export PATH="$SNAP/bin:$SNAP/usr/bin:$PATH"
+export LD_LIBRARY_PATH="$SNAP/cuda/lib64:$SNAP/lib:$SNAP/usr/lib:$LD_LIBRARY_PATH"
+
+# Logging setup
+LOG_DIR="$SNAP_DATA/logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/server.log"
+
+# Configuration setup
+CONFIG_DIR="$SNAP_DATA/config"
+mkdir -p "$CONFIG_DIR"
+
+# Data directories
+DATA_DIR="$SNAP_DATA/data"
+BACKUP_DIR="$SNAP_DATA/backups"
+mkdir -p "$DATA_DIR" "$BACKUP_DIR"
+
+# Function to log messages
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [INFO] $1" | tee -a "$LOG_FILE"
+}
+
+log_error() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] $1" | tee -a "$LOG_FILE" >&2
+}
+
+# Check for GPU availability
+check_gpu() {
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        if nvidia-smi >/dev/null 2>&1; then
+            GPU_COUNT=$(nvidia-smi --list-gpus | wc -l)
+            log "GPU support detected: $GPU_COUNT GPU(s) available"
+            export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0,1,2,3}"
+        else
+            log "NVIDIA drivers found but no GPU detected"
+            export CUDA_VISIBLE_DEVICES=""
+        fi
+    else
+        log "No GPU support detected, running in CPU mode"
+        export CUDA_VISIBLE_DEVICES=""
+    fi
+}
+
+# Wait for network availability
+wait_for_network() {
+    log "Waiting for network connectivity..."
+    local max_attempts=30
+    local attempt=0
+    
+    while [ $attempt -lt $max_attempts ]; do
+        if ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+            log "Network connectivity established"
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+    
+    log_error "Network connectivity timeout after $max_attempts attempts"
+    return 1
+}
+
+# Initialize database connection
+init_database() {
+    log "Checking database connectivity..."
+    
+    # Default database configuration
+    export DATABASE_URL="${DATABASE_URL:-postgresql://netmgmt:secure_password_123@localhost:5432/network_mgmt}"
+    export REDIS_URL="${REDIS_URL:-redis://localhost:6379}"
+    
+    # Test database connection (implementation would go here)
+    log "Database configuration loaded"
+}
+
+# Initialize Ray cluster connection
+init_ray_cluster() {
+    log "Initializing Ray cluster connection..."
+    
+    # Ray cluster configuration
+    export RAY_ADDRESS="${RAY_ADDRESS:-auto}"
+    export RAY_DASHBOARD_PORT="${RAY_DASHBOARD_PORT:-8265}"
+    
+    log "Ray cluster configuration loaded"
+}
+
+# Health check function
+health_check() {
+    local health_endpoint="http://localhost:8000/health"
+    local max_attempts=10
+    local attempt=0
+    
+    log "Performing health check..."
+    
+    while [ $attempt -lt $max_attempts ]; do
+        if curl -f "$health_endpoint" >/dev/null 2>&1; then
+            log "Health check passed"
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        sleep 5
+    done
+    
+    log_error "Health check failed after $max_attempts attempts"
+    return 1
+}
+
+# Cleanup function
+cleanup() {
+    log "Shutting down Network Management Platform server..."
+    if [ -n "$SERVER_PID" ]; then
+        kill "$SERVER_PID" 2>/dev/null || true
+        wait "$SERVER_PID" 2>/dev/null || true
+    fi
+    log "Server shutdown complete"
+}
+
+# Set up signal handlers
+trap cleanup TERM INT
+
+# Main startup sequence
+main() {
+    log "Starting Network Management Platform Server v$SNAP_VERSION"
+    log "Snap: $SNAP_NAME"
+    log "Data directory: $SNAP_DATA"
+    
+    # Pre-flight checks
+    check_gpu
+    wait_for_network || log_error "Network check failed, continuing anyway"
+    init_database
+    init_ray_cluster
+    
+    # Start the server
+    log "Starting FastAPI server..."
+    cd "$SNAP/backend" || {
+        log_error "Backend directory not found"
+        exit 1
+    }
+    
+    # Start the Python application
+    python3.11 -m uvicorn app.main:app \
+        --host 0.0.0.0 \
+        --port 8000 \
+        --log-level info \
+        --access-log \
+        --loop asyncio &
+    
+    SERVER_PID=$!
+    log "Server started with PID: $SERVER_PID"
+    
+    # Wait for server to start and perform health check
+    sleep 10
+    if health_check; then
+        log "Server startup completed successfully"
+    else
+        log_error "Server startup verification failed"
+    fi
+    
+    # Keep the process running
+    wait "$SERVER_PID"
+}
+
+# Execute main function
+main "$@"

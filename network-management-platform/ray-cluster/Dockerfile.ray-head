@@ -1,0 +1,50 @@
+FROM rayproject/ray:2.8.0-gpu
+
+# Install additional dependencies for network management
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    sqlalchemy \
+    psycopg2-binary \
+    redis \
+    paramiko \
+    pysnmp \
+    python-nmap \
+    psutil \
+    langchain \
+    openai \
+    cupy-cuda12x \
+    torch \
+    transformers \
+    accelerate
+
+# Install system packages for network tools
+USER root
+RUN apt-get update && apt-get install -y \
+    nmap \
+    snmp \
+    snmp-mibs-downloader \
+    iproute2 \
+    iputils-ping \
+    tcpdump \
+    wireshark-common \
+    net-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Switch back to ray user
+USER ray
+
+# Copy Ray configuration
+COPY config/ray-head.yaml /ray/config/
+COPY scripts/start-ray-head.sh /ray/
+
+# Make script executable
+USER root
+RUN chmod +x /ray/start-ray-head.sh
+USER ray
+
+# Expose Ray ports
+EXPOSE 8265 10001 8000
+
+# Start Ray head node
+CMD ["/ray/start-ray-head.sh"]

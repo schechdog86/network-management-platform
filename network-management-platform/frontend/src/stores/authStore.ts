@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User, AuthTokens } from '@/types';
+import { User } from '@/types';
 import { apiService } from '@/services/api';
 
 interface AuthState {
@@ -22,7 +22,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       accessToken: null,
       isAuthenticated: false,
@@ -50,8 +50,8 @@ export const useAuthStore = create<AuthState>()(
           });
           
           return true;
-        } catch (error: any) {
-          const errorMessage = error.response?.data?.detail || 'Login failed';
+        } catch (error) {
+          const errorMessage = (error as any)?.response?.data?.detail || 'Login failed';
           set({
             isLoading: false,
             error: errorMessage,
@@ -93,7 +93,7 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             error: null
           });
-        } catch (error: any) {
+        } catch (error) {
           console.error('Failed to refresh user:', error);
           // Token might be invalid
           localStorage.removeItem('access_token');

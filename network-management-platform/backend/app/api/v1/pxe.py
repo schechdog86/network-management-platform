@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 import logging
 
 from app.core.database import get_db
+from app.core.rate_limit import bulk_operation_limiter
 from app.services.pxe_server import pxe_boot_manager, PXEBootManager, BootMode
 
 router = APIRouter()
@@ -132,7 +133,7 @@ async def get_pxe_server_status():
         raise HTTPException(status_code=500, detail="Failed to get server status")
 
 
-@router.post("/deployments")
+@router.post("/deployments", dependencies=[Depends(bulk_operation_limiter)])
 async def create_deployment_job(
     job_config: DeploymentJobConfig,
     background_tasks: BackgroundTasks

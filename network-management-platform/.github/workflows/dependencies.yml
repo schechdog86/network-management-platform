@@ -1,0 +1,182 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # Every Monday at midnight
+  workflow_dispatch:
+
+jobs:
+  update-frontend-deps:
+    name: Update Frontend Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+    
+    - name: Update dependencies
+      working-directory: ./frontend
+      run: |
+        npx npm-check-updates -u
+        npm install
+        npm audit fix
+    
+    - name: Run tests
+      working-directory: ./frontend
+      run: |
+        npm run type-check
+        npm test -- --watchAll=false
+        npm run build
+    
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore(frontend): update dependencies'
+        title: '[Auto] Update Frontend Dependencies'
+        body: |
+          ## Frontend Dependency Updates
+          
+          This PR contains automatic dependency updates for the frontend.
+          
+          ### Changes
+          - Updated npm dependencies to latest versions
+          - Fixed any security vulnerabilities
+          
+          ### Testing
+          - ✅ Type checking passed
+          - ✅ Unit tests passed
+          - ✅ Build successful
+          
+          Please review the changes and merge if all checks pass.
+        branch: auto/frontend-deps-update
+        delete-branch: true
+
+  update-backend-deps:
+    name: Update Backend Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Update dependencies
+      working-directory: ./backend
+      run: |
+        pip install pip-upgrader safety
+        
+        # Update requirements.txt
+        pip-upgrade requirements.txt --skip-package-check
+        pip-upgrade requirements-dev.txt --skip-package-check
+        
+        # Check for security issues
+        safety check -r requirements.txt || true
+    
+    - name: Test updated dependencies
+      working-directory: ./backend
+      run: |
+        pip install -r requirements.txt -r requirements-dev.txt
+        python -m pytest tests/ -v
+        mypy app/
+    
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore(backend): update dependencies'
+        title: '[Auto] Update Backend Dependencies'
+        body: |
+          ## Backend Dependency Updates
+          
+          This PR contains automatic dependency updates for the backend.
+          
+          ### Changes
+          - Updated Python dependencies to latest versions
+          - Checked for security vulnerabilities
+          
+          ### Testing
+          - ✅ Unit tests passed
+          - ✅ Type checking passed
+          
+          Please review the changes and merge if all checks pass.
+        branch: auto/backend-deps-update
+        delete-branch: true
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run npm audit
+      working-directory: ./frontend
+      run: |
+        npm audit --production > npm-audit.txt || true
+        if grep -q "found 0 vulnerabilities" npm-audit.txt; then
+          echo "No vulnerabilities found in frontend"
+        else
+          echo "Vulnerabilities found in frontend:"
+          cat npm-audit.txt
+        fi
+    
+    - name: Run pip audit
+      working-directory: ./backend
+      run: |
+        pip install pip-audit
+        pip-audit -r requirements.txt > pip-audit.txt || true
+        if grep -q "No known vulnerabilities" pip-audit.txt; then
+          echo "No vulnerabilities found in backend"
+        else
+          echo "Vulnerabilities found in backend:"
+          cat pip-audit.txt
+        fi
+    
+    - name: Create issue if vulnerabilities found
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          
+          let hasVulnerabilities = false;
+          let issueBody = '## Security Vulnerabilities Found\n\n';
+          
+          // Check frontend
+          if (fs.existsSync('frontend/npm-audit.txt')) {
+            const npmAudit = fs.readFileSync('frontend/npm-audit.txt', 'utf8');
+            if (!npmAudit.includes('found 0 vulnerabilities')) {
+              hasVulnerabilities = true;
+              issueBody += '### Frontend (npm)\n```\n' + npmAudit + '\n```\n\n';
+            }
+          }
+          
+          // Check backend
+          if (fs.existsSync('backend/pip-audit.txt')) {
+            const pipAudit = fs.readFileSync('backend/pip-audit.txt', 'utf8');
+            if (!pipAudit.includes('No known vulnerabilities')) {
+              hasVulnerabilities = true;
+              issueBody += '### Backend (pip)\n```\n' + pipAudit + '\n```\n\n';
+            }
+          }
+          
+          if (hasVulnerabilities) {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '[Security] Dependency vulnerabilities detected',
+              body: issueBody,
+              labels: ['security', 'dependencies']
+            });
+          }

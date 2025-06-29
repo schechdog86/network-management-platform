@@ -28,7 +28,7 @@ export interface DeviceMetric {
   value: number;
   unit: string;
   timestamp: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 export interface SystemMetrics {
@@ -160,8 +160,11 @@ export interface SnmpData {
 }
 
 export interface WebSocketMessage {
-  type: 'device_update' | 'system_metrics' | 'snmp_data' | 'alert' | 'heartbeat' | 'connection_status' | 'error';
-  data?: any;
+  type: 'device_update' | 'system_metrics' | 'snmp_data' | 'alert' | 'heartbeat' | 'connection_status' | 'error' | 'pxe_boot' | 'backups';
+  data?: {
+    type?: string;
+    [key: string]: unknown;
+  };
   device_id?: string;
   timestamp: string;
 }
@@ -228,7 +231,16 @@ export interface ChartConfig {
       fill?: boolean;
     }>;
   };
-  options?: any;
+  options?: {
+    responsive?: boolean;
+    maintainAspectRatio?: boolean;
+    plugins?: {
+      legend?: { display?: boolean; position?: string };
+      title?: { display?: boolean; text?: string };
+      tooltip?: { enabled?: boolean; mode?: string };
+    };
+    scales?: Record<string, unknown>;
+  };
 }
 
 // WebSocket connection states
@@ -255,4 +267,89 @@ export interface PaginatedResponse<T> {
   skip: number;
   limit: number;
   has_more: boolean;
+}
+
+// PXE Boot Types
+export interface PXEServerStatus {
+  status: 'running' | 'stopped' | 'error';
+  services: {
+    dhcp: 'running' | 'stopped';
+    tftp: 'running' | 'stopped';
+    http: 'running' | 'stopped';
+  };
+  config?: PXEServerConfig;
+}
+
+export interface PXEServerConfig {
+  interface: string;
+  subnet: string;
+  tftp_server: string;
+  http_server: string;
+  boot_mode: 'bios' | 'uefi' | 'both';
+}
+
+export interface PXEDeploymentJob {
+  id: string;
+  target_mac: string;
+  os_type: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  progress: number;
+  started_at: string;
+  completed_at?: string;
+  error?: string;
+}
+
+export interface DHCPReservation {
+  mac_address: string;
+  ip_address: string;
+  hostname?: string;
+  created_at: string;
+}
+
+export interface DHCPLease {
+  mac_address: string;
+  ip_address: string;
+  hostname?: string;
+  expires_at: string;
+  state: 'active' | 'expired';
+}
+
+// Settings Types
+export type SettingsValue = string | number | boolean | string[];
+
+export interface Settings {
+  [key: string]: SettingsValue;
+}
+
+// Metrics Collection Status
+export interface MetricsCollectionStatus {
+  is_running: boolean;
+  interval: number;
+  last_collection: string;
+  collections_count: number;
+  error_count: number;
+}
+
+// Error types
+export interface ErrorResponse {
+  detail: string;
+  status_code?: number;
+  timestamp?: string;
+}
+
+// Chat Types
+export interface ChatMessage {
+  id: string;
+  type: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: string;
+  status?: 'sending' | 'sent' | 'error';
+  entities?: Record<string, string | number | boolean>;
+  result?: unknown;
+}
+
+export interface ChatContext {
+  device_count: number;
+  active_alerts: number;
+  system_status: string;
 }

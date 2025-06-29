@@ -1,0 +1,184 @@
+# AI Hardware Gadget Configuration
+# Optimized for GPU compute nodes
+
+device-tree: ai-hardware
+volumes:
+  pc:
+    # Use GPT for UEFI systems
+    schema: gpt
+    bootloader: grub
+    id: 0C5695D3-9FBE-4DF6-8CB4-8C7F5C2F3B56
+    structure:
+      - name: mbr
+        type: mbr
+        size: 440
+        update:
+          edition: 1
+        content:
+          - image: pc-boot.img
+            
+      - name: BIOS Boot
+        type: DA,21686148-6449-6E6F-744E-656564454649
+        size: 1M
+        offset: 1M
+        offset-write: mbr+92
+        update:
+          edition: 2
+        content:
+          - image: pc-core.img
+            
+      - name: ubuntu-seed
+        role: system-seed
+        filesystem: vfat
+        # Increased size for AI models and recovery tools
+        size: 3G
+        type: EF,C12A7328-F81F-11D2-BA4B-00A0C93EC93B
+        offset: 2M
+        update:
+          edition: 2
+        content:
+          - source: grubx64.efi
+            target: EFI/boot/grubx64.efi
+          - source: shim.efi.signed
+            target: EFI/boot/bootx64.efi
+          - source: mmx64.efi
+            target: EFI/boot/mmx64.efi
+          - source: grub.cfg
+            target: EFI/ubuntu/grub.cfg
+          - source: boot-assets/
+            target: /
+
+      - name: ubuntu-boot
+        role: system-boot
+        filesystem: ext4
+        type: 83,0FC63DAF-8483-4772-8E79-3D69D8477DE4
+        # Larger boot partition for kernel modules
+        size: 1500M
+        update:
+          edition: 1
+          preserve:
+            - env
+            
+      - name: ubuntu-save
+        role: system-save
+        filesystem: ext4
+        type: 83,0FC63DAF-8483-4772-8E79-3D69D8477DE4
+        # Increased for encryption keys and recovery data
+        size: 128M
+        
+      - name: ubuntu-data
+        role: system-data
+        filesystem: ext4
+        type: 83,0FC63DAF-8483-4772-8E79-3D69D8477DE4
+        # Use remaining space for data
+        size: 100%
+
+defaults:
+  system:
+    kernel:
+      # GPU and performance optimizations
+      dangerous-cmdline: |
+        console=ttyS0,115200n8
+        console=tty1
+        panic=-1
+        intel_iommu=on
+        iommu=pt
+        pci=realloc
+        pcie_aspm=off
+        processor.max_cstate=0
+        intel_idle.max_cstate=0
+        transparent_hugepage=never
+        numa_balancing=disable
+        isolcpus=managed_irq,domain,2-7
+        nohz_full=2-7
+        rcu_nocbs=2-7
+        
+    # Network configuration for AI cluster
+    network:
+      version: 2
+      ethernets:
+        # Management interface
+        eno1:
+          dhcp4: true
+          dhcp6: true
+          optional: true
+          
+        # High-speed data interface
+        eno2:
+          dhcp4: false
+          dhcp6: false
+          mtu: 9000
+          optional: true
+          
+    # Storage configuration
+    storage:
+      # NVMe optimization
+      nvme:
+        io_timeout: 4294967295
+        max_sectors_kb: 1280
+        
+    # GPU configuration
+    gpu:
+      # NVIDIA settings
+      nvidia:
+        persistence_mode: 1
+        power_limit: default
+        compute_mode: default
+        
+    # System services
+    services:
+      # SSH configuration
+      ssh:
+        password_authentication: false
+        permit_root_login: false
+        
+      # Time synchronization
+      ntp:
+        enabled: true
+        servers:
+          - ntp.ubuntu.com
+          - time.google.com
+          
+    # Security settings
+    security:
+      # AppArmor
+      apparmor:
+        enabled: true
+        
+      # Secure boot
+      secureboot:
+        enabled: true
+        
+    # Performance tuning
+    performance:
+      # CPU governor
+      cpu_governor: performance
+      
+      # Swappiness
+      vm_swappiness: 1
+      
+      # File handles
+      fs_file_max: 2097152
+      
+      # Network buffers
+      net_core_rmem_max: 134217728
+      net_core_wmem_max: 134217728
+      
+    # AI-specific configuration
+    ai_worker:
+      # Ray cluster settings
+      ray:
+        enabled: true
+        head_address: auto
+        port: 6379
+        
+      # Model cache
+      model_cache:
+        path: /var/snap/ai-worker/common/models
+        size_limit: 100G
+        
+      # GPU monitoring
+      monitoring:
+        enabled: true
+        interval: 30
+        export_port: 9090

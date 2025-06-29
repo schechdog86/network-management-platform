@@ -11,6 +11,8 @@ import logging
 
 from app.core.database import get_db
 from app.core.ray_cluster import get_ray_manager
+from app.core.rate_limit import bulk_operation_limiter
+from app.core.validation import validate_request, validate_network_scan, DataValidator
 from app.models.device import Device, DeviceMetric
 from app.schemas.device import (
     DeviceCreate, DeviceUpdate, DeviceResponse, 
@@ -23,15 +25,47 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.get("/", response_model=List[DeviceResponse])
+@router.get("/", response_model=List[DeviceResponse], 
+    summary="List all devices",
+    description="Retrieve a paginated list of network devices with optional filtering",
+    response_description="List of devices matching the filter criteria",
+    responses={
+        200: {
+            "description": "Successful response",
+            "content": {
+                "application/json": {
+                    "example": [{
+                        "id": 1,
+                        "ip_address": "192.168.1.100",
+                        "hostname": "server-01",
+                        "device_type": "server",
+                        "status": "online",
+                        "vendor": "Dell",
+                        "last_seen": "2024-01-01T12:00:00Z"
+                    }]
+                }
+            }
+        },
+        500: {"description": "Internal server error"}
+    }
+)
 async def get_devices(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, le=1000),
-    device_type: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, le=1000, description="Maximum number of records to return"),
+    device_type: Optional[str] = Query(None, description="Filter by device type (router, switch, server, etc.)"),
+    status: Optional[str] = Query(None, description="Filter by status (online, offline, unknown)"),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get list of managed devices with filtering"""
+    """
+    Get a list of managed network devices.
+    
+    This endpoint supports pagination and filtering by device type and status.
+    Use it to retrieve devices for display in dashboards or for bulk operations.
+    
+    **Filter Options:**
+    - `device_type`: router, switch, server, workstation, firewall, access_point
+    - `status`: online, offline, unknown
+    """
     try:
         device_service = DeviceService(db)
         devices = await device_service.get_devices(
@@ -134,7 +168,7 @@ async def get_device_metrics(
         raise HTTPException(status_code=500, detail="Failed to retrieve device metrics")
 
 
-@router.post("/scan", response_model=dict)
+@router.post("/scan", response_model=dict, dependencies=[Depends(bulk_operation_limiter)])
 async def scan_network(
     scan_request: DeviceScanRequest,
     background_tasks: BackgroundTasks,
@@ -142,6 +176,45 @@ async def scan_network(
 ):
     """Initiate GPU-accelerated network scan"""
     try:
+        # Validate scan request
+        validation_errors = []
+        
+        # Validate each subnet
+        for subnet in scan_request.subnets:
+            if not DataValidator.validate_ip_address(subnet) and not DataValidator.validate_cidr(subnet):
+                validation_errors.append(f"Invalid subnet format: {subnet}. Must be a valid IP address or CIDR notation")
+        
+        # Validate port range
+        if scan_request.port_range:
+            # Parse port range (format: "1-1024" or single port "80")
+            if '-' in scan_request.port_range:
+                try:
+                    start_port, end_port = scan_request.port_range.split('-')
+                    start_port = int(start_port)
+                    end_port = int(end_port)
+                    
+                    if not (DataValidator.validate_port(start_port) and DataValidator.validate_port(end_port)):
+                        validation_errors.append(f"Port range must be between 1-65535")
+                    elif start_port > end_port:
+                        validation_errors.append(f"Invalid port range: start port ({start_port}) must be less than end port ({end_port})")
+                except ValueError:
+                    validation_errors.append(f"Invalid port range format: {scan_request.port_range}")
+            else:
+                # Single port
+                try:
+                    port = int(scan_request.port_range)
+                    if not DataValidator.validate_port(port):
+                        validation_errors.append(f"Port must be between 1-65535")
+                except ValueError:
+                    validation_errors.append(f"Invalid port format: {scan_request.port_range}")
+        
+        # If there are validation errors, raise HTTPException
+        if validation_errors:
+            raise HTTPException(
+                status_code=422,
+                detail={"errors": validation_errors}
+            )
+        
         if not ray.is_initialized():
             raise HTTPException(status_code=503, detail="Ray cluster not available")
         
@@ -232,7 +305,7 @@ async def get_device_status(device_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Failed to retrieve device status")
 
 
-@router.post("/bulk-action")
+@router.post("/bulk-action", dependencies=[Depends(bulk_operation_limiter)])
 async def bulk_device_action(
     action: str,
     device_ids: List[str],

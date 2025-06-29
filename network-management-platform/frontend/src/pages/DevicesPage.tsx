@@ -13,7 +13,6 @@ import {
 import {
   Add as AddIcon,
   Refresh as RefreshIcon,
-  PowerSettingsNew as PowerIcon,
   RestartAlt as RebootIcon,
   Wifi as WakeIcon,
 } from '@mui/icons-material';

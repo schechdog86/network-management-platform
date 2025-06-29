@@ -1,0 +1,66 @@
+# Network Manager Server Configuration
+
+app:
+  name: "Network Manager Server"
+  version: "1.0.0"
+  debug: false
+  
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+  
+database:
+  url: "${DATABASE_URL}"
+  pool_size: 20
+  max_overflow: 40
+  pool_pre_ping: true
+  echo: false
+  
+redis:
+  url: "${REDIS_URL}"
+  decode_responses: true
+  health_check_interval: 30
+  
+auth:
+  secret_key: "${AUTH_SECRET_KEY:-development-secret-key-change-in-production}"
+  algorithm: "HS256"
+  access_token_expire_minutes: 60
+  refresh_token_expire_days: 30
+  
+security:
+  allowed_hosts:
+    - "*"
+  enable_cors: true
+  enable_csrf: false
+  
+rate_limiting:
+  enabled: true
+  default_limit: "100/hour"
+  storage_uri: "${REDIS_URL}"
+  
+monitoring:
+  enable_metrics: true
+  enable_tracing: true
+  metrics_path: "/metrics"
+  
+backup:
+  storage_path: "${SNAP_DATA}/backups"
+  retention_days: 30
+  compression: true
+  encryption: true
+  
+network:
+  scan_timeout: 30
+  ping_timeout: 5
+  ssh_timeout: 30
+  snmp_timeout: 10
+  
+tasks:
+  task_track_started: true
+  task_time_limit: 3600
+  task_soft_time_limit: 3000
+  result_expires: 86400

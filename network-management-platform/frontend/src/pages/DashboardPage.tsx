@@ -7,6 +7,8 @@ import NetworkTopologyChart from '@/components/Dashboard/NetworkTopologyChart';
 import LoadingSpinner from '@/components/Common/LoadingSpinner';
 
 const DashboardPage: React.FC = () => {
+  const [initialLoading, setInitialLoading] = React.useState(true);
+  
   const {
     currentMetrics,
     metricsHistory,
@@ -42,6 +44,8 @@ const DashboardPage: React.FC = () => {
         }
       } catch (error) {
         console.error('Failed to initialize dashboard:', error);
+      } finally {
+        setInitialLoading(false);
       }
     };
 
@@ -64,7 +68,7 @@ const DashboardPage: React.FC = () => {
     clearDevicesError();
   };
 
-  if (!currentMetrics && metricsHistory.length === 0) {
+  if (initialLoading) {
     return <LoadingSpinner message="Loading dashboard data..." />;
   }
 

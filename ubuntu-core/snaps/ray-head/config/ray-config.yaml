@@ -1,0 +1,86 @@
+# Ray Configuration for Network Management Platform
+
+# Cluster settings
+cluster:
+  name: network-ai-cluster
+  namespace: network-management
+  
+# Head node configuration  
+head:
+  cpu: 8
+  memory: 16Gi
+  gpu: 0
+  
+# Worker configurations
+worker_groups:
+  - name: gpu-workers
+    min_replicas: 0
+    max_replicas: 10
+    cpu: 8
+    memory: 64Gi
+    gpu: 1
+    gpu_type: nvidia.com/gpu
+    
+  - name: cpu-workers
+    min_replicas: 1
+    max_replicas: 20
+    cpu: 16
+    memory: 32Gi
+    gpu: 0
+
+# Ray settings
+ray:
+  version: 2.9.1
+  dashboard:
+    enabled: true
+    host: 0.0.0.0
+    port: 8265
+    
+  metrics:
+    export_port: 8080
+    
+  logging:
+    level: INFO
+    format: json
+    
+  object_store:
+    memory: 10Gi
+    
+  plasma:
+    memory: 8Gi
+    
+# Autoscaling
+autoscaling:
+  enabled: true
+  idle_timeout_minutes: 5
+  upscaling_speed: 1.0
+  downscaling_speed: 0.5
+  
+# Resource management
+resources:
+  limits:
+    cpu: "100"
+    memory: "1Ti"
+    gpu: "10"
+    
+  requests:
+    cpu: "10"
+    memory: "100Gi"
+    gpu: "0"
+    
+# Scheduling
+scheduling:
+  policy: PACK  # PACK or SPREAD
+  bin_packing_threshold: 0.8
+  
+# Fault tolerance
+fault_tolerance:
+  max_node_failures: 3
+  max_task_retries: 3
+  checkpoint_interval: 300  # seconds
+  
+# Security
+security:
+  auth_enabled: false
+  tls_enabled: false
+  redis_password: ""

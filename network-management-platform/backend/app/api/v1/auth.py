@@ -9,9 +9,9 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import json
-import logging
 
 from app.core.database import get_db
+from app.core.logging_config import get_logger, log_security_event, TimedOperation
 from app.core.auth import (
     authenticate_user,
     create_access_token,
@@ -23,6 +23,8 @@ from app.core.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 from app.models.user import User, Role, AuditLog
+from app.core.rate_limit import auth_rate_limiter
+from app.core.validation import validate_request, validate_user_registration, DataValidator
 from app.schemas.auth import (
     Token,
     User as UserSchema,
@@ -36,7 +38,7 @@ from app.schemas.auth import (
     AuditLog as AuditLogSchema
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -99,7 +101,7 @@ async def log_audit_action(
     await db.commit()
 
 
-@router.post("/register", response_model=UserSchema)
+@router.post("/register", response_model=UserSchema, dependencies=[Depends(auth_rate_limiter)])
 async def register_user(
     user_create: UserCreate,
     db: AsyncSession = Depends(get_db),
@@ -107,6 +109,14 @@ async def register_user(
     request: Request = None
 ):
     """Register a new user (admin only)"""
+    # Validate user data
+    validation_result = validate_user_registration(user_create)
+    if not validation_result["valid"]:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"errors": validation_result["errors"]}
+        )
+    
     # Check if username already exists
     result = await db.execute(select(User).where(User.username == user_create.username))
     if result.scalar_one_or_none():
@@ -146,24 +156,32 @@ async def register_user(
     return db_user
 
 
-@router.post("/token", response_model=Token)
+@router.post("/token", response_model=Token, dependencies=[Depends(auth_rate_limiter)])
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
     request: Request = None
 ):
     """Login endpoint that returns JWT tokens"""
-    user = await authenticate_user(db, form_data.username, form_data.password)
-    if not user:
-        await log_audit_action(
-            db, None, "failed_login", "user", 
-            form_data.username, {"reason": "invalid_credentials"}, request
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    async with TimedOperation("user_login", logger, username=form_data.username):
+        user = await authenticate_user(db, form_data.username, form_data.password)
+        if not user:
+            await log_audit_action(
+                db, None, "failed_login", "user", 
+                form_data.username, {"reason": "invalid_credentials"}, request
+            )
+            log_security_event(
+                "login_failed",
+                success=False,
+                username=form_data.username,
+                reason="invalid_credentials",
+                ip_address=request.client.host if request.client else "unknown"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
     
     if not user.is_active:
         raise HTTPException(
@@ -182,6 +200,16 @@ async def login_for_access_token(
         db, user, "login", "user", None, {"method": "password"}, request
     )
     
+    log_security_event(
+        "login_success",
+        success=True,
+        user_id=str(user.id),
+        username=user.username,
+        ip_address=request.client.host if request.client else "unknown"
+    )
+    
+    logger.info(f"User logged in successfully: {user.username}")
+    
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -189,7 +217,7 @@ async def login_for_access_token(
     }
 
 
-@router.post("/refresh", response_model=Token)
+@router.post("/refresh", response_model=Token, dependencies=[Depends(auth_rate_limiter)])
 async def refresh_access_token(
     refresh_token: str,
     db: AsyncSession = Depends(get_db)
@@ -257,7 +285,7 @@ async def update_user_me(
     return current_user
 
 
-@router.post("/change-password")
+@router.post("/change-password", dependencies=[Depends(auth_rate_limiter)])
 async def change_password(
     password_change: PasswordChange,
     current_user: User = Depends(get_current_active_user),
@@ -285,7 +313,7 @@ async def change_password(
     return {"message": "Password changed successfully"}
 
 
-@router.post("/api-key")
+@router.post("/api-key", dependencies=[Depends(auth_rate_limiter)])
 async def generate_api_key(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),

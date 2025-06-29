@@ -1,0 +1,105 @@
+name: network-web
+version: '1.0'
+summary: Network Management Platform - Web Interface
+description: |
+  Modern React-based web interface for network management platform.
+  Features include device management, metrics visualization, AI chat interface,
+  and real-time monitoring dashboards.
+
+base: core24
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on: amd64
+
+environment:
+  NODE_ENV: production
+  REACT_APP_API_URL: http://localhost:8000
+  PORT: 3000
+
+apps:
+  web-server:
+    command: bin/start-web-server
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-bind
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=2048"
+
+  webctl:
+    command: bin/webctl
+    plugs:
+      - network
+
+plugs:
+  api-connection:
+    interface: content
+    content: network-manager-api
+    target: $SNAP_DATA/api
+
+parts:
+  node:
+    plugin: nil
+    stage-packages:
+      - nodejs
+      - npm
+    override-build: |
+      # Install Node.js 20 LTS
+      curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      apt-get install -y nodejs
+      
+      # Install global packages
+      npm install -g serve pm2
+      
+      # Copy binaries to stage
+      mkdir -p $CRAFT_PART_INSTALL/usr/bin
+      cp /usr/bin/node $CRAFT_PART_INSTALL/usr/bin/
+      cp /usr/bin/npm $CRAFT_PART_INSTALL/usr/bin/
+      cp /usr/bin/serve $CRAFT_PART_INSTALL/usr/bin/
+      cp /usr/bin/pm2 $CRAFT_PART_INSTALL/usr/bin/
+
+  frontend:
+    plugin: dump
+    source: ../../../network-management-platform/frontend
+    after: [node]
+    override-build: |
+      # Copy source files
+      cp -r . $CRAFT_PART_INSTALL/app
+      cd $CRAFT_PART_INSTALL/app
+      
+      # Install dependencies
+      npm ci --production=false
+      
+      # Build the React app
+      npm run build
+      
+      # Clean up source files, keep only build
+      find . -maxdepth 1 ! -name 'build' ! -name '.' -exec rm -rf {} +
+      mv build/* .
+      rm -rf build
+      
+      # Create optimized production bundle
+      find . -name "*.map" -delete  # Remove source maps
+      find . -name "*.test.js" -delete  # Remove test files
+
+  scripts:
+    plugin: dump
+    source: scripts/
+    organize:
+      start-web-server.sh: bin/start-web-server
+      webctl.py: bin/webctl
+      nginx.conf: etc/nginx.conf
+      serve.json: etc/serve.json
+    stage:
+      - bin/*
+      - etc/*
+
+  config:
+    plugin: dump
+    source: config/
+    organize:
+      web-config.json: etc/web-config.json
+      runtime-config.js: app/runtime-config.js

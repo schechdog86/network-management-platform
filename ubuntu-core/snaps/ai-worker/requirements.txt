@@ -1,0 +1,38 @@
+# Core AI frameworks
+ray[default]==2.9.0
+torch==2.1.2
+torchvision==0.16.2
+tensorflow==2.15.0
+
+# Essential ML libraries
+numpy==1.24.3
+pandas==2.0.3
+scikit-learn==1.3.2
+
+# Transformers and NLP
+transformers==4.36.2
+accelerate==0.25.0
+datasets==2.16.1
+tokenizers==0.15.0
+safetensors==0.4.1
+
+# System monitoring
+psutil==5.9.6
+gpustat==1.1.1
+nvidia-ml-py==12.535.133
+
+# Utilities
+requests==2.31.0
+pyyaml==6.0.1
+tqdm==4.66.1
+matplotlib==3.7.4
+seaborn==0.13.0
+
+# Distributed training
+horovod==0.28.1
+deepspeed==0.12.6
+
+# Model serving
+tritonclient[all]==2.41.0
+onnx==1.15.0
+onnxruntime-gpu==1.16.3

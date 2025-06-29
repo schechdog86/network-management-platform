@@ -1,0 +1,244 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Build and push Docker images
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    outputs:
+      backend-image: ${{ steps.backend-meta.outputs.tags }}
+      frontend-image: ${{ steps.frontend-meta.outputs.tags }}
+      version: ${{ steps.version.outputs.version }}
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Determine version
+      id: version
+      run: |
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          VERSION=latest
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    # Backend image
+    - name: Extract backend metadata
+      id: backend-meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha
+    
+    - name: Build and push backend image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./backend
+        push: true
+        tags: ${{ steps.backend-meta.outputs.tags }}
+        labels: ${{ steps.backend-meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          VERSION=${{ steps.version.outputs.version }}
+    
+    # Frontend image
+    - name: Extract frontend metadata
+      id: frontend-meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha
+    
+    - name: Build and push frontend image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./frontend
+        push: true
+        tags: ${{ steps.frontend-meta.outputs.tags }}
+        labels: ${{ steps.frontend-meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          VERSION=${{ steps.version.outputs.version }}
+          VITE_API_URL=${{ vars.PRODUCTION_API_URL }}
+
+  # Deploy to staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: staging
+      url: https://staging.networkplatform.io
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Deploy to Kubernetes (Staging)
+      env:
+        KUBE_CONFIG: ${{ secrets.STAGING_KUBE_CONFIG }}
+        BACKEND_IMAGE: ${{ needs.build-and-push.outputs.backend-image }}
+        FRONTEND_IMAGE: ${{ needs.build-and-push.outputs.frontend-image }}
+      run: |
+        echo "$KUBE_CONFIG" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        
+        # Update deployments with new images
+        kubectl set image deployment/backend backend=$BACKEND_IMAGE -n staging
+        kubectl set image deployment/frontend frontend=$FRONTEND_IMAGE -n staging
+        
+        # Wait for rollout
+        kubectl rollout status deployment/backend -n staging
+        kubectl rollout status deployment/frontend -n staging
+        
+        # Run database migrations
+        kubectl exec -it deployment/backend -n staging -- python -m alembic upgrade head
+    
+    - name: Run smoke tests
+      run: |
+        pip install httpx pytest
+        pytest tests/smoke_tests.py --base-url=https://staging.networkplatform.io
+
+  # Deploy to production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy-staging]
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+      url: https://networkplatform.io
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Create release notes
+      id: release-notes
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const version = '${{ needs.build-and-push.outputs.version }}';
+          const body = `
+          ## 🚀 Release ${version}
+          
+          ### Docker Images
+          - Backend: \`${{ needs.build-and-push.outputs.backend-image }}\`
+          - Frontend: \`${{ needs.build-and-push.outputs.frontend-image }}\`
+          
+          ### Deployment Status
+          - ✅ Staging deployment successful
+          - 🔄 Production deployment in progress
+          
+          ### Changes
+          See [full changelog](https://github.com/${{ github.repository }}/compare/previous-tag...${version})
+          `;
+          return body;
+    
+    - name: Deploy to Kubernetes (Production)
+      env:
+        KUBE_CONFIG: ${{ secrets.PRODUCTION_KUBE_CONFIG }}
+        BACKEND_IMAGE: ${{ needs.build-and-push.outputs.backend-image }}
+        FRONTEND_IMAGE: ${{ needs.build-and-push.outputs.frontend-image }}
+      run: |
+        echo "$KUBE_CONFIG" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        
+        # Create backup of current deployment
+        kubectl create -f k8s/backup-job.yaml -n production
+        
+        # Update deployments with new images
+        kubectl set image deployment/backend backend=$BACKEND_IMAGE -n production
+        kubectl set image deployment/frontend frontend=$FRONTEND_IMAGE -n production
+        
+        # Wait for rollout
+        kubectl rollout status deployment/backend -n production
+        kubectl rollout status deployment/frontend -n production
+        
+        # Run database migrations
+        kubectl exec -it deployment/backend -n production -- python -m alembic upgrade head
+    
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ needs.build-and-push.outputs.version }}
+        body: ${{ steps.release-notes.outputs.result }}
+        draft: false
+        prerelease: false
+    
+    - name: Notify deployment
+      uses: actions/github-script@v6
+      with:
+        script: |
+          await github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: context.payload.deployment.id,
+            state: 'success',
+            environment_url: 'https://networkplatform.io',
+            description: 'Deployment successful'
+          });
+
+  # Rollback job (manual trigger)
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Rollback to previous version
+      env:
+        KUBE_CONFIG: ${{ secrets.PRODUCTION_KUBE_CONFIG }}
+      run: |
+        echo "$KUBE_CONFIG" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        
+        # Rollback deployments
+        kubectl rollout undo deployment/backend -n production
+        kubectl rollout undo deployment/frontend -n production
+        
+        # Wait for rollback
+        kubectl rollout status deployment/backend -n production
+        kubectl rollout status deployment/frontend -n production

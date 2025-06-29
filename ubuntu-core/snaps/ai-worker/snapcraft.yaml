@@ -1,0 +1,178 @@
+name: ai-worker
+version: '1.0'
+summary: AI Worker Node for distributed training and inference
+description: |
+  A comprehensive AI worker node snap that includes Ray, PyTorch,
+  TensorFlow, and GPU support for distributed AI workloads.
+  Optimized for Ubuntu Core 24 deployment on local AI clusters.
+
+base: core24
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on: amd64
+    run-on: amd64
+
+# Environment variables for AI libraries
+environment:
+  PYTHONPATH: $SNAP/usr/lib/python3/dist-packages:$PYTHONPATH
+  LD_LIBRARY_PATH: $SNAP/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+  CUDA_HOME: $SNAP/usr/local/cuda
+  RAY_ADDRESS: "auto"
+
+# Required plugs for AI workloads
+plugs:
+  gpu:
+    interface: opengl
+  cuda:
+    interface: content
+    content: cuda-runtime
+    target: $SNAP/cuda
+  network:
+  network-bind:
+  home:
+  removable-media:
+  hardware-observe:
+  system-observe:
+  process-control:
+  mount-observe:
+
+apps:
+  # Main Ray worker daemon
+  ray-worker:
+    command: bin/start-ray-worker
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-bind
+      - gpu
+      - cuda
+      - hardware-observe
+      - system-observe
+      - process-control
+
+  # PyTorch training service
+  pytorch-worker:
+    command: bin/pytorch-worker
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - gpu
+      - cuda
+      - home
+
+  # TensorFlow serving
+  tf-serving:
+    command: bin/tensorflow-serving
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-bind
+      - gpu
+      - cuda
+
+  # Model cache manager
+  model-cache:
+    command: bin/model-cache-manager
+    daemon: simple
+    plugs:
+      - network
+      - home
+      - removable-media
+
+  # Performance monitor
+  monitor:
+    command: bin/gpu-monitor
+    daemon: simple
+    plugs:
+      - hardware-observe
+      - system-observe
+      - gpu
+
+  # CLI tool for management
+  ai-ctl:
+    command: bin/ai-worker-ctl
+    plugs:
+      - network
+      - hardware-observe
+
+parts:
+  # Python AI libraries
+  ai-libs:
+    plugin: python
+    source: .
+    python-packages:
+      - ray[default]==2.9.0
+      - torch==2.1.2
+      - torchvision==0.16.2
+      - tensorflow==2.15.0
+      - numpy==1.24.3
+      - pandas==2.0.3
+      - scikit-learn==1.3.2
+      - transformers==4.36.2
+      - accelerate==0.25.0
+      - datasets==2.16.1
+      - tokenizers==0.15.0
+      - safetensors==0.4.1
+      - psutil==5.9.6
+      - gpustat==1.1.1
+      - nvidia-ml-py==12.535.133
+      - requests==2.31.0
+      - pyyaml==6.0.1
+    stage-packages:
+      - python3-dev
+      - python3-pip
+      - libopenblas-dev
+      - liblapack-dev
+      - libhdf5-dev
+      - libopenmpi-dev
+
+  # GPU support libraries
+  gpu-support:
+    plugin: nil
+    stage-packages:
+      - ocl-icd-libopencl1
+      - opencl-headers
+      - clinfo
+      - libgomp1
+      - libnuma1
+
+  # Worker scripts
+  scripts:
+    plugin: dump
+    source: scripts/
+    organize:
+      '*.sh': bin/
+      '*.py': bin/
+    stage:
+      - bin/*
+    filesets:
+      executables:
+        - bin/*
+    prime:
+      - $executables
+
+  # Configuration files
+  config:
+    plugin: dump
+    source: config/
+    organize:
+      '*': etc/ai-worker/
+
+  # Source code
+  src:
+    plugin: dump
+    source: src/
+    organize:
+      '*.py': lib/ai-worker/
+
+# Hooks for initialization
+hooks:
+  install:
+    plugs: [network]
+  configure:
+    plugs: [network, gpu]

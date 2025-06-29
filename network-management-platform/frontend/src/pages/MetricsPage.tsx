@@ -13,7 +13,6 @@ import {
 } from '@mui/material';
 import {
   PlayArrow as StartIcon,
-  Stop as StopIcon,
   Refresh as RefreshIcon,
   Download as DownloadIcon,
 } from '@mui/icons-material';

@@ -18,6 +18,8 @@ import PXEBootPage from '@/pages/PXEBootPage';
 import ChatPage from '@/pages/ChatPage';
 import PredictiveMaintenancePage from '@/pages/PredictiveMaintenancePage';
 import LoadingSpinner from '@/components/Common/LoadingSpinner';
+import ErrorBoundary from '@/components/Common/ErrorBoundary';
+import AsyncErrorBoundary from '@/components/Common/AsyncErrorBoundary';
 
 // Hooks
 import { useRealtimeUpdates } from '@/hooks/useWebSocket';
@@ -117,14 +119,18 @@ const App: React.FC = () => {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Router>
-          <AppContent />
-        </Router>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <AsyncErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <Router>
+              <AppContent />
+            </Router>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </AsyncErrorBoundary>
+    </ErrorBoundary>
   );
 };
 
@@ -157,14 +163,14 @@ const AppContent: React.FC = () => {
         }
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="devices" element={<DevicesPage />} />
-        <Route path="network" element={<NetworkPage />} />
-        <Route path="metrics" element={<MetricsPage />} />
-        <Route path="pxe-boot" element={<PXEBootPage />} />
-        <Route path="chat" element={<ChatPage />} />
-        <Route path="predictive-maintenance" element={<PredictiveMaintenancePage />} />
-        <Route path="settings" element={<SettingsPage />} />
+        <Route path="dashboard" element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
+        <Route path="devices" element={<ErrorBoundary><DevicesPage /></ErrorBoundary>} />
+        <Route path="network" element={<ErrorBoundary><NetworkPage /></ErrorBoundary>} />
+        <Route path="metrics" element={<ErrorBoundary><MetricsPage /></ErrorBoundary>} />
+        <Route path="pxe-boot" element={<ErrorBoundary><PXEBootPage /></ErrorBoundary>} />
+        <Route path="chat" element={<ErrorBoundary><ChatPage /></ErrorBoundary>} />
+        <Route path="predictive-maintenance" element={<ErrorBoundary><PredictiveMaintenancePage /></ErrorBoundary>} />
+        <Route path="settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
       </Route>
       
       {/* Catch all route */}

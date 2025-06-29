@@ -2,7 +2,6 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
-  Drawer,
   List,
   ListItem,
   ListItemButton,
@@ -19,8 +18,6 @@ import {
   NetworkCheck as NetworkIcon,
   Analytics as MetricsIcon,
   Settings as SettingsIcon,
-  Storage as BackupIcon,
-  Terminal as ConsoleIcon,
   DeviceHub as PXEIcon,
   SmartToy as ChatIcon,
   TrendingUp as PredictiveIcon,

@@ -19,13 +19,15 @@ from app.core.ray_cluster import init_ray_cluster
 from app.core.init_admin import init_admin_data
 from app.api.v1 import api_router
 from app.core.websocket_manager import WebSocketManager
+from app.core.api_docs import API_TITLE, API_VERSION, API_DESCRIPTION, TAGS_METADATA, custom_openapi_schema
+from app.core.rate_limit import rate_limit_middleware
+from app.core.validation import validation_middleware
+from app.core.logging_config import setup_logging, get_logger
+from app.middleware.logging import LoggingMiddleware, AuditLoggingMiddleware
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+setup_logging()
+logger = get_logger(__name__)
 
 # Initialize WebSocket manager
 websocket_manager = WebSocketManager()
@@ -63,13 +65,17 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI application
 app = FastAPI(
-    title="Network Management Platform",
-    description="Enterprise-grade network management with AI automation",
-    version="1.0.0",
+    title=API_TITLE,
+    description=API_DESCRIPTION,
+    version=API_VERSION,
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    openapi_tags=TAGS_METADATA,
     lifespan=lifespan
 )
+
+# Set custom OpenAPI schema
+app.openapi = lambda: custom_openapi_schema(app)
 
 # Configure CORS
 app.add_middleware(
@@ -79,6 +85,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add rate limiting middleware
+app.middleware("http")(rate_limit_middleware)
+
+# Add validation middleware
+app.middleware("http")(validation_middleware)
+
+# Add logging middleware
+app.add_middleware(LoggingMiddleware)
+app.add_middleware(AuditLoggingMiddleware)
 
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")

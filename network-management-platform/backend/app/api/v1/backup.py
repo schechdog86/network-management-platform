@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 import logging
 
 from app.core.database import get_db
+from app.core.rate_limit import bulk_operation_limiter
 from app.services.backup_service import hybrid_backup_service
 from app.models.backup import BackupJob, BackupEvent, BackupStorage
 
@@ -36,7 +37,7 @@ class RepositoryConfigRequest(BaseModel):
     compression: bool = Field(default=True, description="Enable compression")
 
 
-@router.post("/jobs")
+@router.post("/jobs", dependencies=[Depends(bulk_operation_limiter)])
 async def create_backup_job(
     backup_config: BackupConfigRequest,
     background_tasks: BackgroundTasks,

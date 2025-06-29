@@ -1,0 +1,176 @@
+name: network-manager-server
+version: '1.0'
+summary: Network Management Platform Server - FastAPI Backend
+description: |
+  Enterprise network management server with FastAPI backend,
+  providing REST API for device management, monitoring, and AI orchestration.
+  Includes support for Wake-on-LAN, PXE boot, backup management, and metrics.
+
+base: core24
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on: amd64
+
+environment:
+  PYTHONPATH: $SNAP/usr/lib/python3/dist-packages:$SNAP/lib/python3.12/site-packages
+  LC_ALL: C.UTF-8
+  LANG: C.UTF-8
+  DATABASE_URL: "postgresql://netmanager:password@localhost/networkdb"
+  REDIS_URL: "redis://localhost:6379"
+  API_HOST: "0.0.0.0"
+  API_PORT: "8000"
+
+layout:
+  /var/lib/network-manager:
+    bind: $SNAP_DATA/var/lib/network-manager
+  /etc/network-manager:
+    bind: $SNAP_DATA/etc/network-manager
+
+apps:
+  api-server:
+    command: bin/start-api-server
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-bind
+      - network-control
+      - network-observe
+      - hardware-observe
+      - system-observe
+      - log-observe
+    environment:
+      UVICORN_HOST: "0.0.0.0"
+      UVICORN_PORT: "8000"
+      UVICORN_WORKERS: "4"
+      UVICORN_LOG_LEVEL: "info"
+
+  worker:
+    command: bin/start-worker
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-control
+      - hardware-observe
+      - system-observe
+
+  scheduler:
+    command: bin/start-scheduler
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - system-observe
+
+  netctl:
+    command: bin/netctl
+    plugs:
+      - network
+      - network-control
+
+slots:
+  network-manager-api:
+    interface: content
+    content: network-manager-api
+    read:
+      - $SNAP_DATA/api
+
+plugs:
+  postgres-db:
+    interface: content
+    content: postgres-socket
+    target: $SNAP_DATA/postgres
+  
+  redis-cache:
+    interface: content
+    content: redis-socket
+    target: $SNAP_DATA/redis
+
+parts:
+  python-deps:
+    plugin: python
+    source: .
+    python-packages:
+      # FastAPI and web framework
+      - fastapi==0.109.0
+      - uvicorn[standard]==0.27.0
+      - pydantic==2.5.3
+      - pydantic-settings==2.1.0
+      
+      # Database
+      - sqlalchemy==2.0.25
+      - alembic==1.13.1
+      - asyncpg==0.29.0
+      - psycopg2-binary==2.9.9
+      
+      # Redis and caching
+      - redis==5.0.1
+      - aioredis==2.0.1
+      
+      # Background tasks
+      - celery==5.3.4
+      - flower==2.0.1
+      
+      # Authentication
+      - python-jose[cryptography]==3.3.0
+      - passlib[bcrypt]==1.7.4
+      - python-multipart==0.0.6
+      
+      # Monitoring and metrics
+      - prometheus-client==0.19.0
+      - opentelemetry-api==1.22.0
+      - opentelemetry-sdk==1.22.0
+      - opentelemetry-instrumentation-fastapi==0.43b0
+      
+      # Network utilities
+      - netaddr==0.10.1
+      - netifaces==0.11.0
+      - pysnmp==4.4.12
+      - paramiko==3.4.0
+      - wakeonlan==3.1.0
+      
+      # Data processing
+      - pandas==2.1.4
+      - numpy==1.26.3
+      
+      # API documentation
+      - slowapi==0.1.9  # Rate limiting
+      
+      # Testing
+      - httpx==0.26.0
+      - pytest==7.4.4
+      - pytest-asyncio==0.23.3
+
+  backend-code:
+    plugin: dump
+    source: ../../../network-management-platform/backend
+    organize:
+      app: app
+      alembic: alembic
+      scripts: scripts
+    stage:
+      - app
+      - alembic
+      - alembic.ini
+      - requirements.txt
+
+  scripts:
+    plugin: dump
+    source: scripts/
+    organize:
+      start-api-server.sh: bin/start-api-server
+      start-worker.sh: bin/start-worker
+      start-scheduler.sh: bin/start-scheduler
+      netctl.py: bin/netctl
+    stage:
+      - bin/*
+    
+  config:
+    plugin: dump
+    source: config/
+    organize:
+      api-config.yaml: etc/network-manager/api-config.yaml
+      logging.conf: etc/network-manager/logging.conf

@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { Device, DeviceMetric, NetworkScan } from '@/types';
 import { apiService } from '@/services/api';
+import { getErrorMessage } from '@/utils/errorHelpers';
 
 interface DeviceState {
   devices: Device[];
@@ -13,7 +14,7 @@ interface DeviceState {
   error: string | null;
   
   // Actions
-  fetchDevices: (params?: any) => Promise<void>;
+  fetchDevices: (params?: { device_type?: string; status?: string }) => Promise<void>;
   fetchDevice: (deviceId: string) => Promise<void>;
   addDevice: (device: Partial<Device>) => Promise<boolean>;
   updateDevice: (deviceId: string, device: Partial<Device>) => Promise<boolean>;
@@ -32,7 +33,7 @@ interface DeviceState {
   fetchScanStatus: (scanId: string) => Promise<void>;
   
   // Real-time updates
-  updateDeviceFromWebSocket: (deviceData: any) => void;
+  updateDeviceFromWebSocket: (deviceData: Partial<Device>) => void;
   
   // Utility
   clearError: () => void;
@@ -53,8 +54,8 @@ export const useDeviceStore = create<DeviceState>()((set, get) => ({
     try {
       const devices = await apiService.getDevices(params);
       set({ devices, isLoading: false });
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Failed to fetch devices';
+    } catch (error) {
+      const errorMessage = getErrorMessage(error) || 'Failed to fetch devices';
       set({ error: errorMessage, isLoading: false });
     }
   },
@@ -65,8 +66,8 @@ export const useDeviceStore = create<DeviceState>()((set, get) => ({
     try {
       const device = await apiService.getDevice(deviceId);
       set({ selectedDevice: device, isLoading: false });
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Failed to fetch device';
+    } catch (error) {
+      const errorMessage = getErrorMessage(error) || 'Failed to fetch device';
       set({ error: errorMessage, isLoading: false });
     }
   },
@@ -82,8 +83,8 @@ export const useDeviceStore = create<DeviceState>()((set, get) => ({
         isLoading: false 
       });
       return true;
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Failed to create device';
+    } catch (error) {
+      const errorMessage = getErrorMessage(error) || 'Failed to create device';
       set({ error: errorMessage, isLoading: false });
       return false;
     }
@@ -106,8 +107,8 @@ export const useDeviceStore = create<DeviceState>()((set, get) => ({
         isLoading: false 
       });
       return true;
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Failed to update device';
+    } catch (error) {
+      const errorMessage = getErrorMessage(error) || 'Failed to update device';
       set({ error: errorMessage, isLoading: false });
       return false;
     }
@@ -128,8 +129,8 @@ export const useDeviceStore = create<DeviceState>()((set, get) => ({
         isLoading: false 
       });
       return true;
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Failed to delete device';
+    } catch (error) {
+      const errorMessage = getErrorMessage(error) || 'Failed to delete device';
       set({ error: errorMessage, isLoading: false });
       return false;
     }
@@ -150,7 +151,7 @@ export const useDeviceStore = create<DeviceState>()((set, get) => ({
           [deviceId]: metrics
         }
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to fetch device metrics:', error);
       // Don't set error state for metrics - they're not critical
     }
@@ -160,8 +161,8 @@ export const useDeviceStore = create<DeviceState>()((set, get) => ({
     try {
       const result = await apiService.wakeDevice(deviceId);
       return result.success || false;
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Failed to wake device';
+    } catch (error) {
+      const errorMessage = getErrorMessage(error) || 'Failed to wake device';
       set({ error: errorMessage });
       return false;
     }
@@ -171,8 +172,8 @@ export const useDeviceStore = create<DeviceState>()((set, get) => ({
     try {
       const result = await apiService.rebootDevice(deviceId);
       return result.success || false;
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Failed to reboot device';
+    } catch (error) {
+      const errorMessage = getErrorMessage(error) || 'Failed to reboot device';
       set({ error: errorMessage });
       return false;
     }
@@ -191,8 +192,8 @@ export const useDeviceStore = create<DeviceState>()((set, get) => ({
       });
       
       return scan.id;
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Failed to start network scan';
+    } catch (error) {
+      const errorMessage = getErrorMessage(error) || 'Failed to start network scan';
       set({ error: errorMessage, isLoading: false });
       return null;
     }
@@ -208,12 +209,12 @@ export const useDeviceStore = create<DeviceState>()((set, get) => ({
       );
       
       set({ networkScans: newScans });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to fetch scan status:', error);
     }
   },
 
-  updateDeviceFromWebSocket: (deviceData: any) => {
+  updateDeviceFromWebSocket: (deviceData: Partial<Device>) => {
     const { devices } = get();
     
     // Update device if it exists, otherwise add it
@@ -225,7 +226,7 @@ export const useDeviceStore = create<DeviceState>()((set, get) => ({
       set({ devices: newDevices });
     } else {
       // New device discovered
-      set({ devices: [...devices, deviceData] });
+      set({ devices: [...devices, deviceData as Device] });
     }
   },
 

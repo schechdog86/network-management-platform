@@ -1,0 +1,23 @@
+# Additional kernel command line parameters for AI hardware
+# These are merged with gadget.yaml defaults
+
+# GPU optimizations
+nvidia-drm.modeset=1 nvidia.NVreg_PreserveVideoMemoryAllocations=1
+
+# PCIe settings for multiple GPUs
+pci=realloc=on pci=assign-busses
+
+# Memory settings for large models
+cma=1G hugepagesz=1G hugepages=16
+
+# Network performance
+net.core.default_qdisc=fq tcp_congestion_control=bbr
+
+# Disable unnecessary features
+nmi_watchdog=0 audit=0 mce=off
+
+# Enable IOMMU for GPU passthrough
+amd_iommu=on intel_iommu=on
+
+# Faster boot
+quiet splash fastboot

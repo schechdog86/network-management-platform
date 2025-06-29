@@ -1,0 +1,256 @@
+name: ai-worker-pro
+version: '2.0'
+summary: Enterprise AI Worker with State-of-the-Art Optimizations
+description: |
+  Production-grade AI worker with H100/H200 support, FP8 training,
+  FlashAttention-3, and 3D parallelism capabilities for top-tier
+  AI infrastructure.
+
+base: core24
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on: amd64
+    run-on: amd64
+
+# Environment variables for advanced features
+environment:
+  # FP8 support
+  TRANSFORMER_ENGINE_FP8: "1"
+  NVTE_FLASH_ATTN: "1"
+  NVTE_FUSED_ATTN: "1"
+  
+  # Performance optimizations
+  CUDA_DEVICE_MAX_CONNECTIONS: "1"
+  NCCL_NET_GDR_LEVEL: "5"
+  NCCL_P2P_LEVEL: "NVL"
+  NCCL_IB_DISABLE: "0"
+  NCCL_SOCKET_IFNAME: "^docker0,lo"
+  
+  # Memory optimizations
+  PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True,roundup_power2_divisions:32"
+  TF_GPU_ALLOCATOR: "cuda_malloc_async"
+  
+  # Paths
+  PYTHONPATH: $SNAP/usr/lib/python3/dist-packages:$PYTHONPATH
+  LD_LIBRARY_PATH: $SNAP/usr/local/cuda/lib64:$SNAP/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+  CUDA_HOME: $SNAP/usr/local/cuda
+  
+  # MLOps integration
+  MLFLOW_TRACKING_URI: "http://mlflow-server:5000"
+  WANDB_API_KEY: "${WANDB_API_KEY}"
+
+# Required plugs for enterprise features
+plugs:
+  gpu:
+    interface: opengl
+  cuda:
+    interface: content
+    content: cuda-runtime
+    target: $SNAP/cuda
+  infiniband:
+    interface: custom-device
+    custom-device: infiniband
+  network:
+  network-bind:
+  network-control:
+  home:
+  removable-media:
+  hardware-observe:
+  system-observe:
+  process-control:
+  mount-observe:
+  kernel-module-observe:
+
+apps:
+  # Main Ray worker with 3D parallelism support
+  ray-worker-3d:
+    command: bin/start-ray-worker-3d
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-bind
+      - gpu
+      - cuda
+      - infiniband
+      - hardware-observe
+      - system-observe
+      - process-control
+
+  # DeepSpeed launcher
+  deepspeed-worker:
+    command: bin/deepspeed-launcher
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-bind
+      - gpu
+      - cuda
+      - infiniband
+      - hardware-observe
+
+  # vLLM serving engine
+  vllm-server:
+    command: bin/vllm-server
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-bind
+      - gpu
+      - cuda
+
+  # Advanced GPU monitor with H100 metrics
+  gpu-monitor-pro:
+    command: bin/gpu-monitor-advanced
+    daemon: simple
+    plugs:
+      - hardware-observe
+      - system-observe
+      - gpu
+      - kernel-module-observe
+
+  # MLOps agent
+  mlops-agent:
+    command: bin/mlops-agent
+    daemon: simple
+    plugs:
+      - network
+      - home
+      - removable-media
+
+  # Management CLI with advanced features
+  ai-ctl-pro:
+    command: bin/ai-worker-ctl-pro
+    plugs:
+      - network
+      - hardware-observe
+      - system-observe
+
+parts:
+  # Optimized AI libraries
+  ai-libs-optimized:
+    plugin: python
+    source: .
+    python-packages:
+      # Core frameworks with CUDA 12.1
+      - torch==2.2.0+cu121
+      - tensorflow==2.15.0
+      
+      # Distributed training frameworks
+      - deepspeed==0.13.1
+      - fairscale==0.4.13
+      - megatron-core==0.7.0
+      - horovod==0.28.1
+      
+      # Advanced optimizations
+      - flash-attn==2.5.0
+      - triton==2.2.0
+      - transformer-engine==1.3
+      - apex  # NVIDIA apex for mixed precision
+      - xformers==0.0.24
+      
+      # Model serving
+      - vllm==0.3.0
+      - tensorrt-llm==0.8.0
+      - tritonclient[all]==2.41.0
+      
+      # MLOps tools
+      - mlflow==2.10.0
+      - wandb==0.16.3
+      - dvc[s3]==3.42.0
+      - optuna==3.5.0  # Hyperparameter optimization
+      
+      # Monitoring and profiling
+      - nvidia-ml-py==12.535.133
+      - py3nvml==0.2.7
+      - gpustat==1.1.1
+      - prometheus-client==0.19.0
+      - opentelemetry-api==1.22.0
+      - opentelemetry-sdk==1.22.0
+      
+      # Additional utilities
+      - safetensors==0.4.2
+      - huggingface-hub==0.20.3
+      - datasets==2.16.1
+      - tokenizers==0.15.1
+      - sentencepiece==0.1.99
+      
+    stage-packages:
+      - python3-dev
+      - python3-pip
+      - libopenblas-dev
+      - liblapack-dev
+      - libhdf5-dev
+      - libopenmpi-dev
+      - openmpi-bin
+      - libgomp1
+      - libnuma-dev
+      - libnccl2
+      - libnccl-dev
+      - ibverbs-providers
+      - libibverbs1
+      - librdmacm1
+      - perftest
+      - numactl
+      - htop
+      - nvtop
+
+  # CUDA libraries and tools
+  cuda-toolkit:
+    plugin: nil
+    stage-packages:
+      - cuda-toolkit-12-1
+      - libcudnn8
+      - libcudnn8-dev
+      - libnvinfer8
+      - libnvinfer-dev
+      - tensorrt
+
+  # InfiniBand support
+  infiniband-support:
+    plugin: nil
+    stage-packages:
+      - rdma-core
+      - libibverbs1
+      - ibverbs-providers
+      - librdmacm1
+      - libibumad3
+      - libmlx5-1
+      - infiniband-diags
+      - perftest
+
+  # Enhanced scripts
+  scripts:
+    plugin: dump
+    source: scripts/
+    organize:
+      '*.sh': bin/
+      '*.py': bin/
+    stage:
+      - bin/*
+
+  # Configuration files
+  config:
+    plugin: dump
+    source: config/
+    organize:
+      '*': etc/ai-worker-pro/
+
+  # MLOps integrations
+  mlops:
+    plugin: dump
+    source: mlops/
+    organize:
+      '*.py': lib/mlops/
+      '*.yaml': etc/mlops/
+
+# Hooks for advanced initialization
+hooks:
+  install:
+    plugs: [network]
+  configure:
+    plugs: [network, gpu, infiniband]

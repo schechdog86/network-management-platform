@@ -24,12 +24,10 @@ export const ModernChatInterface: React.FC<ModernChatInterfaceProps> = ({ classN
     sendMessage,
     regenerateResponse,
     provideFeedback,
-    updatePreferences,
-    searchKnowledge,
   } = useChatStore();
 
   const [input, setInput] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(true);
+  const [showSuggestions] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const [showKnowledge, setShowKnowledge] = useState(false);

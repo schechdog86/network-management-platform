@@ -27,7 +27,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ className = '' }) 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { sendMessage, lastMessage, isConnected } = useWebSocket('/ws/chat');
+  const [lastMessage, setLastMessage] = useState<string | null>(null);
+  
+  const { isConnected } = useWebSocket({
+    autoConnect: true,
+    channels: ['chat'],
+    onMessage: (message) => {
+      if (message.type === 'chat' && message.data) {
+        setLastMessage(JSON.stringify(message.data));
+      }
+    }
+  });
 
   useEffect(() => {
     if (lastMessage) {

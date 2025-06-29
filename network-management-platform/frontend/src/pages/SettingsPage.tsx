@@ -8,7 +8,6 @@ import {
   Button,
   Switch,
   FormControlLabel,
-  Divider,
   Alert,
   Chip,
 } from '@mui/material';
@@ -49,7 +48,7 @@ const SettingsPage: React.FC = () => {
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
-  const handleSettingChange = (key: string, value: any) => {
+  const handleSettingChange = (key: string, value: string | number | boolean) => {
     setSettings(prev => ({
       ...prev,
       [key]: value

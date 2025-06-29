@@ -109,13 +109,13 @@ class ApiService {
     return response.data;
   }
 
-  async wakeDevice(deviceId: string): Promise<ApiResponse<any>> {
-    const response = await this.api.post<ApiResponse<any>>(`/devices/${deviceId}/wake`);
+  async wakeDevice(deviceId: string): Promise<ApiResponse<{ message: string }>> {
+    const response = await this.api.post<ApiResponse<{ message: string }>>(`/devices/${deviceId}/wake`);
     return response.data;
   }
 
-  async rebootDevice(deviceId: string): Promise<ApiResponse<any>> {
-    const response = await this.api.post<ApiResponse<any>>(`/devices/${deviceId}/reboot`);
+  async rebootDevice(deviceId: string): Promise<ApiResponse<{ message: string }>> {
+    const response = await this.api.post<ApiResponse<{ message: string }>>(`/devices/${deviceId}/reboot`);
     return response.data;
   }
 

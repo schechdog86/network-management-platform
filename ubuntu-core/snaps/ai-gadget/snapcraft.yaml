@@ -1,0 +1,65 @@
+name: ai-hardware-gadget
+version: '1.0'
+summary: Gadget snap for AI hardware with GPU support
+description: |
+  Custom gadget snap for AI worker nodes with GPU support,
+  optimized boot configuration, and hardware-specific settings.
+  Supports both consumer (RTX) and datacenter (H100) GPUs.
+
+type: gadget
+base: core24
+architectures:
+  - build-on: amd64
+    run-on: amd64
+
+confinement: strict
+grade: stable
+
+parts:
+  gadget:
+    plugin: nil
+    source: .
+    stage:
+      - gadget.yaml
+      - grub.conf
+      - grubx64.efi
+      - shim.efi.signed
+      - mmx64.efi
+      - grub.cfg
+      - pc-boot.img
+      - pc-core.img
+      
+  grub-efi:
+    plugin: nil
+    stage-packages:
+      - grub-efi-amd64-signed
+      - grub-efi-amd64-bin
+      - shim-signed
+    organize:
+      usr/lib/shim/shimx64.efi.signed: shim.efi.signed
+      usr/lib/shim/mmx64.efi: mmx64.efi
+      usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed: grubx64.efi
+      
+  grub-bios:
+    plugin: nil
+    stage-packages:
+      - grub-pc-bin
+    build-packages:
+      - grub-pc-bin
+    override-build: |
+      grub-mkimage \
+        --directory=/usr/lib/grub/i386-pc \
+        --prefix='(,gpt2)/EFI/ubuntu' \
+        --output=pc-boot.img \
+        --format=i386-pc \
+        --compression=none \
+        biosdisk part_gpt ext2 squash4 linux16 configfile normal terminal serial
+      
+      # Generate core image
+      cp /usr/lib/grub/i386-pc/boot.img pc-core.img
+      
+  boot-assets:
+    plugin: dump
+    source: boot-assets/
+    organize:
+      '*': boot-assets/

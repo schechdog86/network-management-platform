@@ -1,0 +1,136 @@
+name: network-db
+version: '1.0'
+summary: Network Management Database - PostgreSQL with TimescaleDB
+description: |
+  PostgreSQL database with TimescaleDB extension for time-series data.
+  Optimized for network metrics, device management, and AI workload tracking.
+
+base: core24
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on: amd64
+
+environment:
+  PGDATA: $SNAP_DATA/postgresql/data
+  PGHOST: $SNAP_DATA/postgresql
+  PATH: $SNAP/usr/lib/postgresql/16/bin:$PATH
+  LD_LIBRARY_PATH: $SNAP/usr/lib/postgresql/16/lib:$SNAP/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+
+layout:
+  /var/lib/postgresql:
+    bind: $SNAP_DATA/postgresql
+  /var/run/postgresql:
+    bind: $SNAP_DATA/postgresql/run
+  /etc/postgresql:
+    bind: $SNAP_DATA/postgresql/conf
+
+apps:
+  postgres:
+    command: bin/start-postgres
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-bind
+    environment:
+      POSTGRES_USER: netmanager
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: networkdb
+
+  psql:
+    command: usr/lib/postgresql/16/bin/psql
+    plugs:
+      - network
+
+  createdb:
+    command: usr/lib/postgresql/16/bin/createdb
+    plugs:
+      - network
+
+  pg-dump:
+    command: usr/lib/postgresql/16/bin/pg_dump
+    plugs:
+      - network
+
+  pg-restore:
+    command: usr/lib/postgresql/16/bin/pg_restore
+    plugs:
+      - network
+
+  dbctl:
+    command: bin/dbctl
+    plugs:
+      - network
+
+slots:
+  postgres-socket:
+    interface: content
+    content: postgres-socket
+    write:
+      - $SNAP_DATA/postgresql
+
+parts:
+  postgresql:
+    plugin: nil
+    stage-packages:
+      - postgresql-16
+      - postgresql-client-16
+      - postgresql-contrib-16
+      - postgresql-16-postgis-3
+      - libpq5
+      - libicu74
+      - locales-all
+    override-build: |
+      # Ensure PostgreSQL binaries are in the right place
+      craftctl default
+
+  timescaledb:
+    plugin: nil
+    build-packages:
+      - wget
+      - gnupg
+      - lsb-release
+      - postgresql-server-dev-16
+      - cmake
+      - gcc
+      - g++
+      - make
+    override-build: |
+      # Build TimescaleDB from source for Ubuntu Core 24
+      wget https://github.com/timescale/timescaledb/archive/refs/tags/2.13.1.tar.gz
+      tar -xzf 2.13.1.tar.gz
+      cd timescaledb-2.13.1
+      
+      ./bootstrap -DREGRESS_CHECKS=OFF
+      cd build
+      make
+      make install DESTDIR=$CRAFT_PART_INSTALL
+      
+      # Copy to the right location
+      mkdir -p $CRAFT_PART_INSTALL/usr/lib/postgresql/16/lib
+      cp $CRAFT_PART_INSTALL/usr/local/lib/postgresql/timescaledb*.so $CRAFT_PART_INSTALL/usr/lib/postgresql/16/lib/
+      
+      mkdir -p $CRAFT_PART_INSTALL/usr/share/postgresql/16/extension
+      cp $CRAFT_PART_INSTALL/usr/local/share/postgresql/extension/timescaledb* $CRAFT_PART_INSTALL/usr/share/postgresql/16/extension/
+
+  scripts:
+    plugin: dump
+    source: scripts/
+    organize:
+      start-postgres.sh: bin/start-postgres
+      dbctl.py: bin/dbctl
+      init-db.sql: etc/init-db.sql
+      postgresql.conf: etc/postgresql.conf
+      pg_hba.conf: etc/pg_hba.conf
+    stage:
+      - bin/*
+      - etc/*
+
+  python-tools:
+    plugin: python
+    python-packages:
+      - psycopg2-binary==2.9.9
+      - click==8.1.7
+      - tabulate==0.9.0

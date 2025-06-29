@@ -9,10 +9,10 @@ export interface ChatMessage {
   status?: 'sending' | 'sent' | 'error' | 'thinking';
   command?: {
     intent: string;
-    entities: Record<string, any>;
+    entities: Record<string, string | number | boolean | string[]>;
     confidence: number;
     executed?: boolean;
-    result?: any;
+    result?: unknown;
   };
   metadata?: {
     tokens?: number;
@@ -195,7 +195,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { addMessage, updateMessage, addKnowledgeEntry } = get();
     
     // Add user message
-    const userMessageId = Date.now().toString();
     addMessage({
       role: 'user',
       content,

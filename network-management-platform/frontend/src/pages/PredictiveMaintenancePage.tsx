@@ -11,6 +11,7 @@ import {
   FleetHealthDashboard,
   MaintenanceSchedule,
 } from '../components/PredictiveMaintenance/HealthDashboard';
+import LoadingSpinner from '@/components/Common/LoadingSpinner';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -40,12 +41,20 @@ function TabPanel(props: TabPanelProps) {
 
 const PredictiveMaintenancePage: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
-  const { devices, fetchDevices } = useDeviceStore();
+  const [initialLoading, setInitialLoading] = useState(true);
+  const { devices, fetchDevices, isLoading } = useDeviceStore();
   const [deviceIds, setDeviceIds] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchDevices();
-  }, []);
+    const loadData = async () => {
+      try {
+        await fetchDevices();
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+    loadData();
+  }, [fetchDevices]);
 
   useEffect(() => {
     // Extract device IDs when devices are loaded
@@ -54,9 +63,13 @@ const PredictiveMaintenancePage: React.FC = () => {
     }
   }, [devices]);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
+
+  if (initialLoading || isLoading) {
+    return <LoadingSpinner message="Loading predictive maintenance data..." />;
+  }
 
   return (
     <Box sx={{ p: 3 }}>

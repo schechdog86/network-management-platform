@@ -14,7 +14,6 @@ import {
 import {
   Menu as MenuIcon,
   Notifications as NotificationsIcon,
-  AccountCircle,
   ExitToApp,
   Settings,
   WifiTethering,

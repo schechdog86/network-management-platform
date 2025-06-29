@@ -1,14 +1,15 @@
 // System metrics store using Zustand
 
 import { create } from 'zustand';
-import { SystemMetrics, DashboardStats } from '@/types';
+import { SystemMetrics, DashboardStats, MetricsCollectionStatus } from '@/types';
 import { apiService } from '@/services/api';
+import { getErrorMessage } from '@/utils/errorHelpers';
 
 interface MetricsState {
   currentMetrics: SystemMetrics | null;
   metricsHistory: SystemMetrics[];
   dashboardStats: DashboardStats | null;
-  collectionStatus: any;
+  collectionStatus: MetricsCollectionStatus | null;
   isCollecting: boolean;
   isLoading: boolean;
   error: string | null;
@@ -45,7 +46,7 @@ export const useMetricsStore = create<MetricsState>()((set, get) => ({
       const metrics = await apiService.getCurrentMetrics();
       set({ currentMetrics: metrics });
       get().calculateDashboardStats();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to fetch current metrics:', error);
       // Don't set error state for background metrics fetching
     }
@@ -60,8 +61,8 @@ export const useMetricsStore = create<MetricsState>()((set, get) => ({
         metricsHistory: response.metrics,
         isLoading: false 
       });
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Failed to fetch metrics history';
+    } catch (error) {
+      const errorMessage = getErrorMessage(error) || 'Failed to fetch metrics history';
       set({ error: errorMessage, isLoading: false });
     }
   },
@@ -73,7 +74,7 @@ export const useMetricsStore = create<MetricsState>()((set, get) => ({
         collectionStatus: status,
         isCollecting: status.is_collecting || false
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to fetch collection status:', error);
     }
   },
@@ -96,8 +97,8 @@ export const useMetricsStore = create<MetricsState>()((set, get) => ({
       }
       
       return false;
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Failed to start metrics collection';
+    } catch (error) {
+      const errorMessage = getErrorMessage(error) || 'Failed to start metrics collection';
       set({ error: errorMessage, isLoading: false });
       return false;
     }
@@ -121,8 +122,8 @@ export const useMetricsStore = create<MetricsState>()((set, get) => ({
       }
       
       return false;
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Failed to stop metrics collection';
+    } catch (error) {
+      const errorMessage = getErrorMessage(error) || 'Failed to stop metrics collection';
       set({ error: errorMessage, isLoading: false });
       return false;
     }

@@ -43,6 +43,14 @@ import {
 } from '@mui/icons-material';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { api } from '@/services/api';
+import LoadingSpinner from '@/components/Common/LoadingSpinner';
+import { 
+  PXEServerStatus, 
+  PXEDeploymentJob, 
+  DHCPReservation, 
+  DHCPLease,
+  PXEServerConfig 
+} from '@/types';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -68,11 +76,12 @@ function TabPanel(props: TabPanelProps) {
 
 const PXEBootPage: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
-  const [serverStatus, setServerStatus] = useState<any>(null);
-  const [deploymentJobs, setDeploymentJobs] = useState<any[]>([]);
-  const [reservations, setReservations] = useState<any[]>([]);
-  const [leases, setLeases] = useState<any[]>([]);
+  const [serverStatus, setServerStatus] = useState<PXEServerStatus | null>(null);
+  const [deploymentJobs, setDeploymentJobs] = useState<PXEDeploymentJob[]>([]);
+  const [reservations, setReservations] = useState<DHCPReservation[]>([]);
+  const [leases, setLeases] = useState<DHCPLease[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [showDeployDialog, setShowDeployDialog] = useState(false);
   const [showReservationDialog, setShowReservationDialog] = useState(false);
   const [showServerConfigDialog, setShowServerConfigDialog] = useState(false);
@@ -117,10 +126,21 @@ const PXEBootPage: React.FC = () => {
   });
 
   useEffect(() => {
-    loadServerStatus();
-    loadDeploymentJobs();
-    loadReservations();
-    loadLeases();
+    const loadInitialData = async () => {
+      setInitialLoading(true);
+      try {
+        await Promise.all([
+          loadServerStatus(),
+          loadDeploymentJobs(),
+          loadReservations(),
+          loadLeases()
+        ]);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    loadInitialData();
 
     // Subscribe to PXE boot events
     subscribeToChannel('pxe_boot');
@@ -134,7 +154,7 @@ const PXEBootPage: React.FC = () => {
 
   const loadServerStatus = async () => {
     try {
-      const response = await apiClient.get('/api/v1/pxe/server/status');
+      const response = await api.get('/api/v1/pxe/server/status');
       setServerStatus(response.data);
     } catch (error) {
       console.error('Failed to load server status:', error);
@@ -143,7 +163,7 @@ const PXEBootPage: React.FC = () => {
 
   const loadDeploymentJobs = async () => {
     try {
-      const response = await apiClient.get('/api/v1/pxe/deployments');
+      const response = await api.get('/api/v1/pxe/deployments');
       setDeploymentJobs(response.data.jobs);
     } catch (error) {
       console.error('Failed to load deployment jobs:', error);
@@ -152,7 +172,7 @@ const PXEBootPage: React.FC = () => {
 
   const loadReservations = async () => {
     try {
-      const response = await apiClient.get('/api/v1/pxe/dhcp/reservations');
+      const response = await api.get('/api/v1/pxe/dhcp/reservations');
       setReservations(response.data.reservations);
     } catch (error) {
       console.error('Failed to load reservations:', error);
@@ -161,7 +181,7 @@ const PXEBootPage: React.FC = () => {
 
   const loadLeases = async () => {
     try {
-      const response = await apiClient.get('/api/v1/pxe/dhcp/leases');
+      const response = await api.get('/api/v1/pxe/dhcp/leases');
       setLeases(response.data.leases);
     } catch (error) {
       console.error('Failed to load leases:', error);
@@ -171,7 +191,7 @@ const PXEBootPage: React.FC = () => {
   const handleStartServer = async () => {
     setLoading(true);
     try {
-      await apiClient.post('/api/v1/pxe/server/start', serverConfig);
+      await api.post('/api/v1/pxe/server/start', serverConfig);
       setTimeout(loadServerStatus, 2000); // Check status after 2 seconds
     } catch (error) {
       console.error('Failed to start PXE server:', error);
@@ -183,7 +203,7 @@ const PXEBootPage: React.FC = () => {
   const handleStopServer = async () => {
     setLoading(true);
     try {
-      await apiClient.post('/api/v1/pxe/server/stop');
+      await api.post('/api/v1/pxe/server/stop');
       await loadServerStatus();
     } catch (error) {
       console.error('Failed to stop PXE server:', error);
@@ -205,7 +225,7 @@ const PXEBootPage: React.FC = () => {
           `$6$rounds=4096$salt$${btoa(deployConfig.password)}` : undefined,
       };
 
-      await apiClient.post('/api/v1/pxe/deployments', config);
+      await api.post('/api/v1/pxe/deployments', config);
       await loadDeploymentJobs();
       setShowDeployDialog(false);
       
@@ -232,7 +252,7 @@ const PXEBootPage: React.FC = () => {
   const handleAddReservation = async () => {
     setLoading(true);
     try {
-      await apiClient.post('/api/v1/pxe/dhcp/reservations', reservation);
+      await api.post('/api/v1/pxe/dhcp/reservations', reservation);
       await loadReservations();
       setShowReservationDialog(false);
       setReservation({ mac_address: '', ip_address: '' });
@@ -245,7 +265,7 @@ const PXEBootPage: React.FC = () => {
 
   const handleDeleteReservation = async (mac: string) => {
     try {
-      await apiClient.delete(`/api/v1/pxe/dhcp/reservations/${mac}`);
+      await api.delete(`/api/v1/pxe/dhcp/reservations/${mac}`);
       await loadReservations();
     } catch (error) {
       console.error('Failed to delete reservation:', error);
@@ -253,6 +273,10 @@ const PXEBootPage: React.FC = () => {
   };
 
   const isServerRunning = serverStatus?.status === 'running';
+
+  if (initialLoading) {
+    return <LoadingSpinner message="Loading PXE Boot Server..." />;
+  }
 
   return (
     <Box>

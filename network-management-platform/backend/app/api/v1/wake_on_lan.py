@@ -3,10 +3,11 @@ Wake-on-LAN API endpoints
 """
 
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 import logging
 
+from app.core.rate_limit import bulk_operation_limiter
 from app.services.wake_on_lan import wol_service
 
 router = APIRouter()
@@ -95,7 +96,7 @@ async def wake_device_multiple_interfaces(request: WakeMultipleRequest):
         raise HTTPException(status_code=500, detail="Failed to send Wake-on-LAN packets")
 
 
-@router.post("/wake/bulk")
+@router.post("/wake/bulk", dependencies=[Depends(bulk_operation_limiter)])
 async def wake_devices_bulk(
     request: BulkWakeRequest,
     background_tasks: BackgroundTasks

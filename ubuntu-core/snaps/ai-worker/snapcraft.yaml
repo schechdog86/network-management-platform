@@ -100,6 +100,17 @@ apps:
       - network
       - hardware-observe
 
+  # SNMP monitoring service
+  snmp-monitor:
+    command: bin/start-snmp-monitor.py
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-bind
+      - hardware-observe
+      - system-observe
+
 parts:
   # Python AI libraries
   ai-libs:
@@ -123,6 +134,9 @@ parts:
       - nvidia-ml-py==12.535.133
       - requests==2.31.0
       - pyyaml==6.0.1
+      - pysnmp==4.4.12
+      - aiohttp==3.9.1
+      - asyncssh==2.14.1
     stage-packages:
       - python3-dev
       - python3-pip

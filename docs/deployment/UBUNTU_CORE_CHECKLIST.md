@@ -40,7 +40,7 @@
 - [x] Add backup capabilities to client snap
 - [x] Integrate Ray worker functionality
 - [x] Add SSH management features
-- [ ] Implement SNMP monitoring
+- [x] Implement SNMP monitoring
 - [ ] Create update mechanism
 
 ### Platform Integration

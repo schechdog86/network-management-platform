@@ -26,6 +26,7 @@ from .alerts import router as alerts_router
 from .gpu_optimization import router as gpu_optimization_router
 from .updates import router as updates_router
 from .snapd import router as snapd_router
+from .snap_distribution import router as snap_distribution_router
 
 # Create main API router
 api_router = APIRouter()
@@ -54,5 +55,6 @@ api_router.include_router(alerts_router, prefix="/alerts", tags=["alerts"])
 api_router.include_router(gpu_optimization_router, prefix="/gpu-optimization", tags=["gpu-optimization"])
 api_router.include_router(updates_router, prefix="/updates", tags=["updates"])
 api_router.include_router(snapd_router, prefix="/snapd", tags=["snapd-management"])
+api_router.include_router(snap_distribution_router, prefix="/snap-distribution", tags=["snap-distribution"])
 
 __all__ = ["api_router"]

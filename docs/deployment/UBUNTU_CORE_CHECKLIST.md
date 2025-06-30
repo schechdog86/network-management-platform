@@ -38,7 +38,7 @@
 ### Client Snap Features
 - [x] Implement hardware monitoring in client snap
 - [x] Add backup capabilities to client snap
-- [ ] Integrate Ray worker functionality
+- [x] Integrate Ray worker functionality
 - [ ] Add SSH management features
 - [ ] Implement SNMP monitoring
 - [ ] Create update mechanism

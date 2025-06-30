@@ -42,6 +42,11 @@ class Device(Base):
     monitoring_enabled = Column(Boolean, default=True)
     backup_enabled = Column(Boolean, default=False)
     
+    # Snapd management configuration
+    snapd_enabled = Column(Boolean, default=False, nullable=False)
+    snapd_endpoint = Column(String(255), nullable=True)
+    snap_config = Column(JSONB, nullable=True)
+    
     # Metadata
     tags = Column(JSONB, nullable=True)
     notes = Column(Text, nullable=True)

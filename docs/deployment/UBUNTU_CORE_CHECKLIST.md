@@ -44,8 +44,8 @@
 - [x] Create update mechanism
 
 ### Platform Integration
-- [ ] Integrate snapd REST API with management platform
-- [ ] Implement remote snap management
+- [x] Integrate snapd REST API with management platform
+- [x] Implement remote snap management
 - [ ] Create snap distribution system
 - [ ] Add snap health monitoring
 - [ ] Implement configuration management

@@ -25,6 +25,7 @@ from .notifications import router as notifications_router
 from .alerts import router as alerts_router
 from .gpu_optimization import router as gpu_optimization_router
 from .updates import router as updates_router
+from .snapd import router as snapd_router
 
 # Create main API router
 api_router = APIRouter()
@@ -52,5 +53,6 @@ api_router.include_router(notifications_router, prefix="/notifications", tags=["
 api_router.include_router(alerts_router, prefix="/alerts", tags=["alerts"])
 api_router.include_router(gpu_optimization_router, prefix="/gpu-optimization", tags=["gpu-optimization"])
 api_router.include_router(updates_router, prefix="/updates", tags=["updates"])
+api_router.include_router(snapd_router, prefix="/snapd", tags=["snapd-management"])
 
 __all__ = ["api_router"]

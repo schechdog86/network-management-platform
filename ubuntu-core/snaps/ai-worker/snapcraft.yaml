@@ -111,6 +111,17 @@ apps:
       - hardware-observe
       - system-observe
 
+  # Update manager service
+  update-manager:
+    command: bin/start-update-manager.py
+    daemon: simple
+    restart-condition: always
+    plugs:
+      - network
+      - network-bind
+      - snapd-control
+      - system-observe
+
 parts:
   # Python AI libraries
   ai-libs:

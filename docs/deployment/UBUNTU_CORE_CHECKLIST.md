@@ -41,7 +41,7 @@
 - [x] Integrate Ray worker functionality
 - [x] Add SSH management features
 - [x] Implement SNMP monitoring
-- [ ] Create update mechanism
+- [x] Create update mechanism
 
 ### Platform Integration
 - [ ] Integrate snapd REST API with management platform

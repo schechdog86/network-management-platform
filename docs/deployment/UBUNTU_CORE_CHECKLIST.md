@@ -36,8 +36,8 @@
 - [x] Test inter-snap communication
 
 ### Client Snap Features
-- [ ] Implement hardware monitoring in client snap
-- [ ] Add backup capabilities to client snap
+- [x] Implement hardware monitoring in client snap
+- [x] Add backup capabilities to client snap
 - [ ] Integrate Ray worker functionality
 - [ ] Add SSH management features
 - [ ] Implement SNMP monitoring

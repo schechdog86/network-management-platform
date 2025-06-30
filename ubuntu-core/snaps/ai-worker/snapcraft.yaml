@@ -130,6 +130,11 @@ parts:
       - liblapack-dev
       - libhdf5-dev
       - libopenmpi-dev
+      - lm-sensors
+      - smartmontools
+      - pciutils
+      - usbutils
+      - hwinfo
 
   # GPU support libraries
   gpu-support:

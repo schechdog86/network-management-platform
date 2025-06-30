@@ -1,42 +1,67 @@
 #!/bin/bash
+# Start Ray worker with hardware monitoring
+
 set -e
 
-# Load configuration
-source $SNAP/etc/ai-worker/worker.conf
-
-# Wait for network
-while ! ping -c 1 ${RAY_HEAD_IP:-ray-head} &> /dev/null; do
-    echo "Waiting for network connectivity..."
-    sleep 5
-done
-
-# Detect GPU capabilities
-GPU_COUNT=$(nvidia-smi -L 2>/dev/null | wc -l || echo 0)
-echo "Detected $GPU_COUNT GPUs"
-
-# Set Ray resources based on hardware
-if [ $GPU_COUNT -gt 0 ]; then
-    RAY_RESOURCES="--num-gpus=$GPU_COUNT"
-else
-    RAY_RESOURCES="--num-cpus=$(nproc)"
+# Source configuration
+CONFIG_FILE="${SNAP_DATA}/ray-worker.conf"
+if [ -f "$CONFIG_FILE" ]; then
+    source "$CONFIG_FILE"
 fi
 
-# Create necessary directories
-mkdir -p $SNAP_DATA/ray
-mkdir -p $SNAP_COMMON/logs
-mkdir -p $SNAP_COMMON/models
+# Default values
+RAY_HEAD_ADDRESS="${RAY_HEAD_ADDRESS:-auto}"
+RAY_WORKER_CPU_CORES="${RAY_WORKER_CPU_CORES:-}"
+RAY_WORKER_GPU_NUM="${RAY_WORKER_GPU_NUM:-}"
+MANAGEMENT_SERVER_URL="${MANAGEMENT_SERVER_URL:-http://localhost:8000}"
+NODE_ID="${NODE_ID:-$(hostname)}"
+
+# Log startup
+echo "Starting Ray worker node..."
+echo "Ray head address: $RAY_HEAD_ADDRESS"
+echo "Management server: $MANAGEMENT_SERVER_URL"
+echo "Node ID: $NODE_ID"
+
+# Check for GPU support
+GPU_ARGS=""
+if command -v nvidia-smi &> /dev/null; then
+    GPU_COUNT=$(nvidia-smi --query-gpu=count --format=csv,noheader | head -n1)
+    if [ -n "$GPU_COUNT" ] && [ "$GPU_COUNT" -gt 0 ]; then
+        echo "Detected $GPU_COUNT GPU(s)"
+        GPU_ARGS="--num-gpus=${RAY_WORKER_GPU_NUM:-$GPU_COUNT}"
+    fi
+fi
+
+# CPU cores argument
+CPU_ARGS=""
+if [ -n "$RAY_WORKER_CPU_CORES" ]; then
+    CPU_ARGS="--num-cpus=$RAY_WORKER_CPU_CORES"
+fi
+
+# Start metrics reporter in background
+export MANAGEMENT_SERVER_URL
+export NODE_ID
+python3 ${SNAP}/lib/ai-worker/metrics_reporter.py &
+METRICS_PID=$!
+echo "Started metrics reporter (PID: $METRICS_PID)"
+
+# Function to cleanup on exit
+cleanup() {
+    echo "Stopping services..."
+    if [ -n "$METRICS_PID" ] && kill -0 $METRICS_PID 2>/dev/null; then
+        kill $METRICS_PID
+    fi
+    ray stop --force
+    exit 0
+}
+
+trap cleanup EXIT INT TERM
 
 # Start Ray worker
-echo "Starting Ray worker node..."
-echo "Connecting to Ray head at ${RAY_HEAD_IP:-ray-head}:6379"
-
+echo "Starting Ray worker..."
 ray start \
-    --address="${RAY_HEAD_IP:-ray-head}:6379" \
-    --node-ip-address="$(hostname -I | awk '{print $1}')" \
-    $RAY_RESOURCES \
-    --object-store-memory=$(($(free -b | awk '/^Mem:/{print $2}') * 3 / 10)) \
-    --temp-dir=$SNAP_DATA/ray \
-    --log-dir=$SNAP_COMMON/logs \
-    --metrics-export-port=8080 \
-    --dashboard-agent-listen-port=52365 \
-    --block
+    --address="$RAY_HEAD_ADDRESS" \
+    --block \
+    $CPU_ARGS \
+    $GPU_ARGS \
+    --labels='{"node_type":"ai-worker","node_id":"'$NODE_ID'"}'

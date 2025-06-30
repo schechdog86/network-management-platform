@@ -10,6 +10,8 @@ import {
   FormControlLabel,
   Alert,
   Chip,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -17,11 +19,36 @@ import {
   Security as SecurityIcon,
   NetworkCheck as NetworkIcon,
   Storage as StorageIcon,
+  Speed as SpeedIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '@/stores/authStore';
+import GPUOptimizationPanel from '@/components/GPU/GPUOptimizationPanel';
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`settings-tabpanel-${index}`}
+      aria-labelledby={`settings-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+    </div>
+  );
+}
 
 const SettingsPage: React.FC = () => {
   const { user } = useAuthStore();
+  const [tabValue, setTabValue] = useState(0);
   const [settings, setSettings] = useState({
     // Network Settings
     defaultScanTimeout: 30,
@@ -91,6 +118,10 @@ const SettingsPage: React.FC = () => {
     });
   };
 
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
+
   return (
     <Box>
       {/* Header */}
@@ -103,19 +134,36 @@ const SettingsPage: React.FC = () => {
         </Typography>
       </Box>
 
-      {/* Save Status Alert */}
-      {saveStatus === 'success' && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          Settings saved successfully
-        </Alert>
-      )}
-      {saveStatus === 'error' && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to save settings. Please try again.
-        </Alert>
-      )}
+      {/* Tabs */}
+      <Paper sx={{ mb: 2 }}>
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          indicatorColor="primary"
+          textColor="primary"
+          variant="scrollable"
+          scrollButtons="auto"
+        >
+          <Tab label="General Settings" />
+          <Tab label="GPU Optimization" icon={<SpeedIcon />} iconPosition="start" />
+        </Tabs>
+      </Paper>
 
-      <Grid container spacing={3}>
+      {/* General Settings Tab */}
+      <TabPanel value={tabValue} index={0}>
+        {/* Save Status Alert */}
+        {saveStatus === 'success' && (
+          <Alert severity="success" sx={{ mb: 3 }}>
+            Settings saved successfully
+          </Alert>
+        )}
+        {saveStatus === 'error' && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            Failed to save settings. Please try again.
+          </Alert>
+        )}
+
+        <Grid container spacing={3}>
         {/* User Profile */}
         <Grid item xs={12}>
           <Paper elevation={1} sx={{ p: 3 }}>
@@ -376,7 +424,12 @@ const SettingsPage: React.FC = () => {
             </Box>
           </Paper>
         </Grid>
-      </Grid>
+      </TabPanel>
+
+      {/* GPU Optimization Tab */}
+      <TabPanel value={tabValue} index={1}>
+        <GPUOptimizationPanel />
+      </TabPanel>
     </Box>
   );
 };

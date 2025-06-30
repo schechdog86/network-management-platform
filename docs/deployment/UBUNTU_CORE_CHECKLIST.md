@@ -39,7 +39,7 @@
 - [x] Implement hardware monitoring in client snap
 - [x] Add backup capabilities to client snap
 - [x] Integrate Ray worker functionality
-- [ ] Add SSH management features
+- [x] Add SSH management features
 - [ ] Implement SNMP monitoring
 - [ ] Create update mechanism
 

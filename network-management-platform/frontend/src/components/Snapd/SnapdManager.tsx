@@ -126,7 +126,7 @@ const SnapdManager: React.FC<SnapdManagerProps> = ({ device, onDeviceUpdate }) =
   const [installClassic, setInstallClassic] = useState(false);
   const [installDangerous, setInstallDangerous] = useState(false);
 
-  const { lastMessage } = useWebSocket();
+  const { lastMessage } = useWebSocket() as { lastMessage: string | null };
 
   useEffect(() => {
     if (device.snapd_enabled) {

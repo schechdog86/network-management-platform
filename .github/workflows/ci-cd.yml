@@ -51,13 +51,32 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+    - name: Check if docs exist
+      id: check_docs
+      run: |
+        if [ -d "docs" ]; then
+          echo "docs_exist=true" >> $GITHUB_OUTPUT
+        else
+          echo "docs_exist=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Build docs
-      if: ${{ exists('docs') }}
+      if: steps.check_docs.outputs.docs_exist == 'true'
       run: |
         if [ -f docs/Makefile ]; then cd docs && make html; fi
 
+    - name: Check if docs build exists
+      id: check_docs_build
+      if: steps.check_docs.outputs.docs_exist == 'true'
+      run: |
+        if [ -d "docs/build/html" ]; then
+          echo "build_exist=true" >> $GITHUB_OUTPUT
+        else
+          echo "build_exist=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Deploy to GitHub Pages
-      if: ${{ exists('docs/build/html') }}
+      if: steps.check_docs_build.outputs.build_exist == 'true'
       uses: peaceiris/actions-gh-pages@v4
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
